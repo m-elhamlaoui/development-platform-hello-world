@@ -24,7 +24,7 @@ The Satellite Tracker is an innovative monitoring system designed to provide pre
 *This page focuses on the predictive health monitoring of each satellite, displaying various metrics and historical data.*
 
 ### End of Life Service
-![End of Life Service](WireframeImages/page4.webp)
+![End of Life Service](WireframeImages/page6.webp)
 *Provides detailed projections and data about the estimated end of operational life for each satellite.*
 
 ### Collision Detection Service
@@ -32,7 +32,7 @@ The Satellite Tracker is an innovative monitoring system designed to provide pre
 *Displays real-time data and alerts about potential collisions between satellites.*
 
 ### Pollution Tracking Service
-![Pollution Tracking Service](WireframeImages/page6.webp)
+![Pollution Tracking Service](WireframeImages/page4.webp)
 *Shows detailed information on the pollution levels emitted by satellites, with trends and statistics.*
 
 
