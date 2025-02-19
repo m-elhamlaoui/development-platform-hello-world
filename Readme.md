@@ -12,7 +12,7 @@ The Satellite Tracker is an innovative monitoring system designed to provide pre
 ## Interface Snapshots
 
 ### Dashboard Overview
-![Dashboard](Wireframe_images/page1.png)
+![Dashboard](Wireframe images/page1.png)
 *The main dashboard provides a comprehensive overview of all satellites, with the ability to click into detailed views.*
 
 ### Satellite Details Page
