@@ -11,13 +11,13 @@ The Satellite Tracker is an innovative monitoring system designed to provide pre
 
 ## Interface Snapshots
 
+### Login and Security Page
+![Login and Security Page](WireframeImages/page6.webp)
+*Features a secure login interface that ensures authenticated access to the Satellite Tracker system, providing user-specific data visibility and interaction capabilities based on assigned permissions.*
+
 ### Dashboard Overview
 ![Dashboard](WireframeImages/page1.png)
 *The main dashboard provides a comprehensive overview of all satellites, with the ability to click into detailed views.*
-
-### Satellite Details Page
-![Satellite Details Page](WireframeImages/page6.webp)
-*Detail view for a selected satellite, showing health status, pollution data, and end of life information.*
 
 ### Health Monitoring Service
 ![Health Monitoring Service](WireframeImages/page2.webp)
