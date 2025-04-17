@@ -53,3 +53,9 @@ Employs advanced data pipelines to process and analyze telemetry data in real-ti
 
 ### **AI Models**
 Develops and utilizes AI models to predict
+
+
+For using mongodb in django in your terminal: pip install mongoengine
+
+
+
