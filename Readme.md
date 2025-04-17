@@ -56,6 +56,7 @@ Develops and utilizes AI models to predict
 
 
 For using mongodb in django in your terminal: pip install mongoengine
+pip install celery[redis] django-celery-beat
 
 
 
