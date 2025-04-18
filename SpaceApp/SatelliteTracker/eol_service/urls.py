@@ -19,4 +19,5 @@ from django.urls import path
 
 urlpatterns = [
     path('eol/', admin.site.urls),
+    path("predict/", PredictView.as_view(), name="predict"),
 ]
