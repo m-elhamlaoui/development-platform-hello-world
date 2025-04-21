@@ -19,4 +19,5 @@ from django.urls import path
 
 urlpatterns = [
     path('health/', admin.site.urls),
+    path('predict/', views.predict, name='predict'),
 ]
