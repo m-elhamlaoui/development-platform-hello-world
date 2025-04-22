@@ -1,7 +1,7 @@
 """
 URL configuration for SatelliteTracker project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
+The urlpatterns list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
 Examples:
 Function views
@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from .views import PredictCollisionView
 
 urlpatterns = [
     path('tracking/', admin.site.urls),
+    path("predict-collision/", PredictCollisionView.as_view(), name="predict-collision"),
 ]
