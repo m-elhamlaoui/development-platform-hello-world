@@ -6,11 +6,16 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 
 @Component
 public class KafkaConsumerService {
 
+    private static final double MU_EARTH = 398600.4418; // Earth's gravitational parameter, km^3/s^2
+    private static final double EARTH_RADIUS = 6378.1;
     private static final String KAFKA_TOPIC = "dataUpdates";
     private static final String TOPIC_HEALTH = "health";
     private static final String TOPIC_ENDOFLIFE = "endoflife";
@@ -31,20 +36,51 @@ public class KafkaConsumerService {
             String satelliteName = (String) receivedData.get("satellite_name");
             String tleLine1 = (String) receivedData.get("tle_line1");
             String tleLine2 = (String) receivedData.get("tle_line2");
-            Integer timeSinceLaunch = (Integer) receivedData.get("time_since_launch");
-            Float orbitalAltitude = (Float) receivedData.get("orbital_altitude");
+            Integer timeSinceLaunch = calculateTimeSinceLaunch(tleLine1);
+            Float orbital_altitude = (Float) receivedData.get("orbital_altitude");
             Float batteryVoltage = (Float) receivedData.get("battery_voltage");
             Float solarPanelTemperature = (Float) receivedData.get("solar_panel_temperature");
             Float attitudeControlError = (Float) receivedData.get("attitude_control_error");
             Float dataTransmissionRate = (Float) receivedData.get("data_transmission_rate");
             Float thermalControlStatus = (Float) receivedData.get("thermal_control_status");
 
+            double line1_epoch = Double.parseDouble(tleLine1.substring(18, 32).trim());
+            double inclination = Double.parseDouble(tleLine2.substring(8, 16).trim());
+            double raan = Double.parseDouble(tleLine2.substring(17, 25).trim());
+            double eccentricity = Double.parseDouble("0." + tleLine2.substring(26, 33).trim());
+            double mean_motion = Double.parseDouble(tleLine2.substring(52, 63).trim());
+
+            double orbitalPeriod = 86400 / mean_motion;
+
+
+            double orbital_velocity_approx = 5000/orbital_altitude;
+
+            double motion_launch_interaction = mean_motion * timeSinceLaunch;
+
+            double inclinationNorm = inclination / 180.0;
+            double altitudeNorm = (orbital_altitude - 160) / (2000 - 160);
+            double meanMotionNorm = (mean_motion - 11) / (16 - 11);
+            altitudeNorm = Math.max(0, Math.min(1, altitudeNorm));
+            meanMotionNorm = Math.max(0, Math.min(1, meanMotionNorm));
+
+
+            double collisionRisk = (inclinationNorm * 0.3) +
+                    (eccentricity * 0.3) +
+                    ((1 - altitudeNorm) * 0.2) +
+                    (meanMotionNorm * 0.2);
+
+
+            int collisionWarning = (collisionRisk > 0.6) ? 1 : 0;
+
+
             System.out.println("Processing Satellite Data - ID: " + satelliteId + ", Name: " + satelliteName);
 
             // Send data to respective topics
-            sendToHealthTopic(satelliteId, satelliteName, timeSinceLaunch, orbitalAltitude, batteryVoltage,
+            sendToHealthTopic(satelliteId, satelliteName, timeSinceLaunch, orbital_altitude, batteryVoltage,
                     solarPanelTemperature, attitudeControlError, dataTransmissionRate, thermalControlStatus);
-            sendToEndOfLifeTopic(satelliteId, satelliteName, tleLine1, tleLine2);
+            sendToEndOfLifeTopic(satelliteId, satelliteName, orbital_altitude,
+                    orbital_velocity_approx,collisionWarning,eccentricity,mean_motion,
+                    motion_launch_interaction,raan,line1_epoch);
             sendToCollisionTopic(satelliteId, satelliteName, tleLine1, tleLine2);
 
         } catch (Exception e) {
@@ -75,13 +111,21 @@ public class KafkaConsumerService {
         }
     }
 
-    private void sendToEndOfLifeTopic(Integer satelliteId, String satelliteName, String tleLine1, String tleLine2) {
+    private void sendToEndOfLifeTopic(Integer satelliteId, String satelliteName, Float orbital_altitude,
+                                      Double orbital_velocity_approx, Integer collisionWarning, Double eccentricity,
+                                      Double mean_motion, Double motion_launch_interaction, Double raan, Double line1_epoch) {
         try {
             Map<String, Object> endOfLifeData = Map.of(
                     "satellite_id", satelliteId,
                     "satellite_name", satelliteName,
-                    "tle_line1", tleLine1,
-                    "tle_line2", tleLine2
+                    "orbital_altitude", orbital_altitude,
+                    "orbital_velocity_approx", orbital_velocity_approx,
+                    "collision_warning", collisionWarning,
+                    "eccentricity", eccentricity,
+                    "mean_motion", mean_motion,
+                    "motion_launch_interaction", motion_launch_interaction,
+                    "raan", raan,
+                    "line1_epoch", line1_epoch
             );
             String message = new ObjectMapper().writeValueAsString(endOfLifeData);
             kafkaTemplate.send(TOPIC_ENDOFLIFE, message);
@@ -90,6 +134,7 @@ public class KafkaConsumerService {
             System.err.println("Error sending to End-of-life Topic: " + e.getMessage());
         }
     }
+
 
     private void sendToCollisionTopic(Integer satelliteId, String satelliteName, String tleLine1, String tleLine2) {
         try {
@@ -106,4 +151,35 @@ public class KafkaConsumerService {
             System.err.println("Error sending to Collision Topic: " + e.getMessage());
         }
     }
+
+
+    public Integer calculateTimeSinceLaunch(String tleLine1) {
+        try {
+            // Extract the epoch (positions 18-32 from Line 1)
+            String epochStr = tleLine1.substring(18, 32).trim();
+
+            // Extract the year from the epoch (first 2 digits)
+            String yearStr = epochStr.substring(0, 2);
+            int year = Integer.parseInt(yearStr) + 2000; // Adding 2000 to get the full year
+
+            // Extract day of year and fractional day
+            double dayOfYear = Double.parseDouble(epochStr.substring(2));
+
+            // Calculate the launch date
+            LocalDate launchDate = LocalDate.of(year, 1, 1).plusDays((long) (dayOfYear - 1)); // Day 1 of the year + dayOfYear-1
+
+            // Get the current date
+            LocalDate currentDate = LocalDate.now(); // You can replace this with any specific date if needed
+
+            // Calculate the days since launch
+            long daysSinceLaunch = ChronoUnit.DAYS.between(launchDate, currentDate);
+
+            return (int) daysSinceLaunch; // Return the days since launch as an Integer
+
+        } catch (Exception e) {
+            System.err.println("Error calculating time since launch: " + e.getMessage());
+            return 0; // Return 0 in case of an error
+        }
+    }
+
 }
