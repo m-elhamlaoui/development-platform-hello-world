@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from .views import PredictView
 
 urlpatterns = [
     path('eol/', admin.site.urls),
+    path("predict/", PredictView.as_view(), name="predict"),
 ]

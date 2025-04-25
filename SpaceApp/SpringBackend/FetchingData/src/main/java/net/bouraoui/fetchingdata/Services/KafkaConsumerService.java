@@ -27,7 +27,7 @@ public class KafkaConsumerService {
     @KafkaListener(topics = KAFKA_TOPIC, groupId = "tle_data_group")
     public void receiveData(String message) {
         try {
-            System.out.println("Received data from Kafka: " + message);
+            System.out.println("Received data from Kafka: hi" + message);
 
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> receivedData = objectMapper.readValue(message, Map.class);
@@ -38,6 +38,10 @@ public class KafkaConsumerService {
             String tleLine2 = (String) receivedData.get("tle_line2");
             Integer timeSinceLaunch = calculateTimeSinceLaunch(tleLine1);
             Float orbital_altitude = (Float) receivedData.get("orbital_altitude");
+            if (orbital_altitude == null) {
+                orbital_altitude = 160.0f + new java.util.Random().nextFloat() * (2000.0f - 160.0f); // range: 160km - 2000km
+                System.out.println("⚠️ orbital_altitude was null. Assigned random value: " + orbital_altitude);
+            }
             Float batteryVoltage = (Float) receivedData.get("battery_voltage");
             Float solarPanelTemperature = (Float) receivedData.get("solar_panel_temperature");
             Float attitudeControlError = (Float) receivedData.get("attitude_control_error");
@@ -78,6 +82,7 @@ public class KafkaConsumerService {
             // Send data to respective topics
             sendToHealthTopic(satelliteId, satelliteName, timeSinceLaunch, orbital_altitude, batteryVoltage,
                     solarPanelTemperature, attitudeControlError, dataTransmissionRate, thermalControlStatus);
+            System.out.println("→ Sending data to endoflife topic...");
             sendToEndOfLifeTopic(satelliteId, satelliteName, orbital_altitude,
                     orbital_velocity_approx,collisionWarning,eccentricity,mean_motion,
                     motion_launch_interaction,raan,line1_epoch);
@@ -129,9 +134,9 @@ public class KafkaConsumerService {
             );
             String message = new ObjectMapper().writeValueAsString(endOfLifeData);
             kafkaTemplate.send(TOPIC_ENDOFLIFE, message);
-            System.out.println("End-of-life data sent to topic: " + TOPIC_ENDOFLIFE);
+            System.out.println("✅ End-of-life data sent to topic '" + TOPIC_ENDOFLIFE + "': " + message); // <-- ADDED
         } catch (Exception e) {
-            System.err.println("Error sending to End-of-life Topic: " + e.getMessage());
+            System.err.println("❌ Error sending to End-of-life Topic: " + e.getMessage());
         }
     }
 
