@@ -16,9 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import PredictCollisionView
+from .views import CollisionPredictionView
 
 urlpatterns = [
     path('tracking/', admin.site.urls),
-    path('predict-collision/', PredictCollisionView.as_view(), name='predict_collision'),
+    path('predict-collision/', CollisionPredictionView.as_view(), name='predict_collision'),
 ]

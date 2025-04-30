@@ -120,3 +120,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+KAFKA_BOOTSTRAP_SERVERS = ['localhost:9092']
+
+BASE_DIR = Path(__file__).resolve().parent
