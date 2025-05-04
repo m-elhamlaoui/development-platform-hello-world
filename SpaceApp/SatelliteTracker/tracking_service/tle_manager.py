@@ -149,10 +149,14 @@ class TLEManager:
     def _clean_old_tles(self, satellites: dict):
         """Remove TLEs older than history_retention_hours."""
         cutoff = datetime.utcnow() - timedelta(hours=self.history_retention_hours)
+        keys_to_delete = []
         for name in satellites:
             satellites[name] = [
                 tle for tle in satellites[name]
                 if datetime.fromisoformat(tle['timestamp']) >= cutoff
             ]
             if not satellites[name]:
-                del satellites[name]
+                keys_to_delete.append(name)
+        for name in keys_to_delete:
+            del satellites[name]
+            logger.info(f"Removed satellite {name} from cache as it has no valid TLEs")
