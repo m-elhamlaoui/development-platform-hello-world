@@ -1,8 +1,7 @@
-package org.example.collisionservice.Repository;
+package com.example.collisionservice.repository;
 
-import org.example.collisionservice.Model.CollisionAlert;
+import com.example.collisionservice.model.CollisionAlert;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 public interface CollisionAlertRepository extends MongoRepository<CollisionAlert, String> {
-    
-}
+} 
