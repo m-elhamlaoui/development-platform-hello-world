@@ -1,0 +1,20 @@
+apiVersion: skaffold/v4beta6
+kind: Config
+metadata:
+  name: microservices-app
+build:
+  local:
+    push: false  # because we're using Minikube local Docker daemon
+  artifacts:
+    - image: collision-service
+      context: collision-service
+      docker:
+        dockerfile: Dockerfile
+    - image: my-microservice-b
+      context: gateway-service
+      docker:
+        dockerfile: Dockerfile
+deploy:
+  kubectl:
+    manifests:
+      - k8s/deployment.yaml

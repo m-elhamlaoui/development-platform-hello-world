@@ -2,12 +2,17 @@ package net.bouraoui.fetchingdata.Services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import net.bouraoui.fetchingdata.Entities.Satellite;
+import net.bouraoui.fetchingdata.Services.Interfaces.SatelliteService;
+import net.bouraoui.fetchingdata.Services.Interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -19,16 +24,24 @@ public class ScheduledTask {
     @Autowired
     private TLEDataService tleDataService;
 
+    @Autowired
+    private SatelliteService satelliteService;
+
     private static final String KAFKA_TOPIC = "dataUpdates";
 
+    private List<Satellite> cachedSatellites;
 
+    @PostConstruct
+    public void init() {
+        cachedSatellites = satelliteService.getTop30SatellitesPrioritized();
+        System.out.println("Fetched top 30 satellites once at startup.");
+    }
 
     @Scheduled(fixedRate = 3600000)
     public void updateTLEData() throws JsonProcessingException {
         Integer[] satelliteIds = {4000, 5000};
-        for (Integer satelliteId : satelliteIds) {
-
-
+        for (var satellite : cachedSatellites) {
+            Integer satelliteId = satellite.getId();
             String tleData = tleDataService.fetchAndSaveTLEData(satelliteId);
             System.out.println("tle data: "+tleData);
             if(tleData!=null) {
