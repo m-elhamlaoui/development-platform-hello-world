@@ -117,14 +117,5 @@ public class AuthController {
     }
 }
 
-record AuthResponse(
-        String token,
-        String id,
-        String email,
-        String name
-) {}
 
-record UserResponse(
-        String email,
-        String name
-) {}
+

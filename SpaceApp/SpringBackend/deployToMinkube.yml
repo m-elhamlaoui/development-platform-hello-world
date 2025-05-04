@@ -1,0 +1,68 @@
+# === Java 17 Service A ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collision-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: service-a
+  template:
+    metadata:
+      labels:
+        app: service-a
+    spec:
+      containers:
+        - name: collision-service
+          image: collision-service:java17
+          ports:
+            - containerPort: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collision-service
+spec:
+  type: NodePort
+  selector:
+    app: service-a
+  ports:
+    - port: 8081
+      targetPort: 8081
+      nodePort: 30001
+
+# === Java 21 Service B ===
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gateway-service
+  template:
+    metadata:
+      labels:
+        app: service-b
+    spec:
+      containers:
+        - name: service-b
+          image: my-microservice-b:java21
+          ports:
+            - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-b
+spec:
+  type: NodePort
+  selector:
+    app: service-b
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30002
