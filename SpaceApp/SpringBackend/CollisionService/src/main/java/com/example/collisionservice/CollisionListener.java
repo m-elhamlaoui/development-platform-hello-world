@@ -1,28 +1,29 @@
 package com.example.collisionservice;
 
-import com.example.collisionservice.model.CollisionAlert;
+import com.example.collisionservice.model.CollisionAlertModel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.util.List;
 import java.util.Map;
 
-@Service
 @Slf4j
+@Component
 public class CollisionListener {
 
     private static final String KAFKA_TOPIC = "collision_alerts";
     private static final String GROUP_ID = "collision_alerts_group";
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @KafkaListener(
         topics = KAFKA_TOPIC,
@@ -65,7 +66,7 @@ public class CollisionListener {
             log.info("- Distance History: {}", distanceHistoryKm);
 
             // Create CollisionAlert object
-            CollisionAlert alert = new CollisionAlert();
+            CollisionAlertModel alert = new CollisionAlertModel();
             alert.setSatellites(satellites);
             alert.setTime(time);
             alert.setDistanceKm(distanceKm);
@@ -81,7 +82,7 @@ public class CollisionListener {
             mongoTemplate.save(alert);
             log.info("Successfully saved to MongoDB:");
             log.info("- Document ID: {}", alert.getId());
-            log.info("- Collection: {}", mongoTemplate.getCollectionName(CollisionAlert.class));
+            log.info("- Collection: {}", mongoTemplate.getCollectionName(CollisionAlertModel.class));
             
             // Acknowledge the message
             ack.acknowledge();
