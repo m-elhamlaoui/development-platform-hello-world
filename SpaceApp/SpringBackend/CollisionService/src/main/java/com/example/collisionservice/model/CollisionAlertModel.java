@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.util.List;
 
 @Document(collection = "collision_alerts")
-public class CollisionAlert {
+public class CollisionAlertModel {
     @Id
     private String id;
     private List<String> satellites;

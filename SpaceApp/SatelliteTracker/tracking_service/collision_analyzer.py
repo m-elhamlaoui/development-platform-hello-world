@@ -23,7 +23,7 @@ TIME_STEP = 60  # seconds
 PREDICTION_WINDOW = 3  # hours
 ALTITUDE_BUFFER = 10.0  # km
 POSITION_EQUALITY_THRESHOLD = 0.001  # km
-MIN_REPORT_INTERVAL = 1800  # seconds
+MIN_REPORT_INTERVAL = 60  # seconds
 
 KNOWN_DOCKED_SPACECRAFT = [
     {"ISS", "ISS (ZARYA)", "ISS (NAUKA)", "SOYUZ-MS 26", "SOYUZ-MS 27", "PROGRESS-MS 29", "PROGRESS-MS 30", "CREW DRAGON 10"},
@@ -181,7 +181,7 @@ class CollisionAnalyzer:
             logger.error("At least 2 satellites are required.")
             return []
 
-        start_time = datetime.utcnow()
+        start_time = datetime.utcnow()+ timedelta(hours=1)
         end_time = start_time + timedelta(hours=hours)
         logger.info(f"Starting collision prediction from {start_time} to {end_time}")
 

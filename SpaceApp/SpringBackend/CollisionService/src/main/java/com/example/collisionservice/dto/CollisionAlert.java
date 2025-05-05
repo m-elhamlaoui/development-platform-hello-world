@@ -1,34 +1,30 @@
-package com.example.collisionservice.model;
+package com.example.collisionservice.dto;
 
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
-@Document(collection = "collision_alerts")
 public class CollisionAlert {
-    @Id
     private String id;
     private List<String> satellites;
     private String time;
     private String trend;
     
-    @Field("distance_km")
+    @JsonProperty("distance_km")
     private double distanceKm;
     
-    @Field("position1_km")
+    @JsonProperty("position1_km")
     private List<Double> position1Km;
     
-    @Field("position2_km")
+    @JsonProperty("position2_km")
     private List<Double> position2Km;
     
-    @Field("danger_level")
+    @JsonProperty("danger_level")
     private String dangerLevel;
     
-    @Field("distance_trend")
+    @JsonProperty("distance_trend")
     private String distanceTrend;
     
-    @Field("distance_history_km")
+    @JsonProperty("distance_history_km")
     private List<Double> distanceHistoryKm;
 
     // Getters and Setters
