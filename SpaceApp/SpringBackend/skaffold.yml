@@ -4,7 +4,7 @@ metadata:
   name: microservices-app
 build:
   local:
-    push: false  # because we're using Minikube local Docker daemon
+    push: false
   artifacts:
     - image: collision-service
       context: collision-service
