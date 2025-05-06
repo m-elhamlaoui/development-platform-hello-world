@@ -53,6 +53,8 @@ public class CollisionListener {
             String distanceTrend = (String) data.get("distance_trend");
             @SuppressWarnings("unchecked")
             List<Double> distanceHistoryKm = (List<Double>) data.get("distance_history_km");
+            String orbitType = (String) data.get("orbit_type");
+            String status = (String) data.get("status");
 
             log.info("Extracted data:");
             log.info("- Satellites: {}", satellites);
@@ -64,6 +66,8 @@ public class CollisionListener {
             log.info("- Trend: {}", trend);
             log.info("- Distance Trend: {}", distanceTrend);
             log.info("- Distance History: {}", distanceHistoryKm);
+            log.info("- Orbit Type: {}", orbitType);
+            log.info("- Status: {}", status);
 
             // Create CollisionAlert object
             CollisionAlertModel alert = new CollisionAlertModel();
@@ -76,6 +80,8 @@ public class CollisionListener {
             alert.setTrend(trend);
             alert.setDistanceTrend(distanceTrend);
             alert.setDistanceHistoryKm(distanceHistoryKm);
+            alert.setOrbitType(orbitType);
+            alert.setStatus(status);
 
             // Save to MongoDB
             log.info("Attempting to save to MongoDB...");
