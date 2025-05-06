@@ -3,6 +3,7 @@ package com.example.collisionservice.controller;
 import com.example.collisionservice.dto.CollisionAlert;
 import com.example.collisionservice.dto.Satellite;
 import com.example.collisionservice.dto.CollisionStats;
+import com.example.collisionservice.dto.TimelineData;
 import com.example.collisionservice.service.CollisionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -10,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/collisions")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", maxAge = 3600)
 public class CollisionController {
 
     @Autowired
@@ -39,5 +40,15 @@ public class CollisionController {
     @GetMapping("/stats")
     public CollisionStats getStats() {
         return collisionService.getStats();
+    }
+
+    @GetMapping("/timeline")
+    public TimelineData getTimelineData() {
+        return collisionService.getTimelineData();
+    }
+
+    @GetMapping("/{id}")
+    public CollisionAlert getCollisionById(@PathVariable String id) {
+        return collisionService.getCollisionById(id);
     }
 } 
