@@ -35,13 +35,22 @@ def start_kafka_consumer():
 
             if processed_data:
 
+                processed_data_json = json.dumps(processed_data)
+
                 def delivery_report(err, msg):
                     if err is not None:
                         print(f"❌ Delivery failed: {err}")
                     else:
                         print(f"✅ Message delivered to {msg.topic()} [{msg.partition()}]")
+                try:
+                    producer.produce('processedDataTopic', value=processed_data_json, callback=delivery_report)
+                    producer.poll(0)  # Trigger delivery callbacks
+                except BufferError:
+                    print("Local producer queue is full. Flushing...")
+                    producer.flush()
+                    producer.produce('processedDataTopic', value=processed_data_json, callback=delivery_report)
                 
-                processed_data_json = json.dumps(processed_data)
+                
 
                 producer.produce('processedDataTopic', value=processed_data_json, callback=delivery_report)
                 
