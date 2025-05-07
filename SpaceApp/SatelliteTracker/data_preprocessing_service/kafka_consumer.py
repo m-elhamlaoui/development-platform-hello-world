@@ -3,6 +3,7 @@ from .models import TLEData
 import json
 import random
 
+
 def start_kafka_consumer():
     consumer_config = {
         'bootstrap.servers': 'localhost:9092', 
@@ -33,10 +34,17 @@ def start_kafka_consumer():
             processed_data = process_tle_data(data)
 
             if processed_data:
+
+                def delivery_report(err, msg):
+                    if err is not None:
+                        print(f"❌ Delivery failed: {err}")
+                    else:
+                        print(f"✅ Message delivered to {msg.topic()} [{msg.partition()}]")
                 
                 processed_data_json = json.dumps(processed_data)
 
-                producer.produce('processedDataTopic', value=processed_data_json)
+                producer.produce('processedDataTopic', value=processed_data_json, callback=delivery_report)
+                
                 producer.flush()
                 print("Processed data sent back to Kafka.")
 
