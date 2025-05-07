@@ -39,9 +39,9 @@ public class ScheduledTask {
 
     @Scheduled(fixedRate = 3600000)
     public void updateTLEData() throws JsonProcessingException {
-        Integer[] satelliteIds = {4000, 5000};
+        //Integer[] satelliteIds = {4000, 5000};
         for (var satellite : cachedSatellites) {
-            Integer satelliteId = satellite.getId();
+            Integer satelliteId = satellite.getNorad_id();
             String tleData = tleDataService.fetchAndSaveTLEData(satelliteId);
             System.out.println("tle data: "+tleData);
             if(tleData!=null) {

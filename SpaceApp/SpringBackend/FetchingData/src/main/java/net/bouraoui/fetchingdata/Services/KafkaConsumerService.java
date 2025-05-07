@@ -16,7 +16,7 @@ public class KafkaConsumerService {
 
     private static final double MU_EARTH = 398600.4418; // Earth's gravitational parameter, km^3/s^2
     private static final double EARTH_RADIUS = 6378.1;
-    private static final String KAFKA_TOPIC = "dataUpdates";
+    private static final String KAFKA_TOPIC = "processedDataTopic";
     private static final String TOPIC_HEALTH = "health";
     private static final String TOPIC_ENDOFLIFE = "endoflife";
     private static final String TOPIC_COLLISION = "collision";
@@ -37,7 +37,8 @@ public class KafkaConsumerService {
             String tleLine1 = (String) receivedData.get("tle_line1");
             String tleLine2 = (String) receivedData.get("tle_line2");
             Integer timeSinceLaunch = calculateTimeSinceLaunch(tleLine1);
-            Float orbital_altitude = (Float) receivedData.get("orbital_altitude");
+            Double altitudeDouble = (Double) receivedData.get("orbital_altitude");
+            Float orbital_altitude = altitudeDouble.floatValue();
             Float batteryVoltage = (Float) receivedData.get("battery_voltage");
             Float solarPanelTemperature = (Float) receivedData.get("solar_panel_temperature");
             Float attitudeControlError = (Float) receivedData.get("attitude_control_error");
@@ -71,7 +72,8 @@ public class KafkaConsumerService {
 
 
             int collisionWarning = (collisionRisk > 0.6) ? 1 : 0;
-
+            System.out.println("timeSinceLaunch: " + timeSinceLaunch);
+            System.out.println("orbital_altitude: " + orbital_altitude);
 
             System.out.println("Processing Satellite Data - ID: " + satelliteId + ", Name: " + satelliteName);
 
