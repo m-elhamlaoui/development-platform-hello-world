@@ -10,6 +10,6 @@ import java.util.List;
 @Repository
 public interface SatelliteRepository extends MongoRepository<Satellite, Integer> {
 
-    @Query(value = "{}", sort = "{ popular : -1 }")
-    List<Satellite> findTop30ByOrderByPopularDesc();
+    @Query(value = "{ popular: 'yes' }", sort = "{ popular : -1 }")
+    List<Satellite> findTop30ByPopularYes(org.springframework.data.domain.Pageable pageable);
 }

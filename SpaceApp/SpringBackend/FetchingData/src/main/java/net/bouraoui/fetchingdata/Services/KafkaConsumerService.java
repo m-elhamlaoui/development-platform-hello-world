@@ -24,27 +24,48 @@ public class KafkaConsumerService {
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
-    @KafkaListener(topics = KAFKA_TOPIC, groupId = "tle_data_group")
+    public KafkaConsumerService() {
+        System.out.println("✅ KafkaConsumerService loaded by Spring");
+    }
+
+    @KafkaListener(topics = "processedDataTopic", groupId = "tle_data_group", autoStartup = "true",properties = {
+            "max.poll.interval.ms=300000",  // 5 minutes
+            "session.timeout.ms=10000",     // 10 seconds
+            "heartbeat.interval.ms=3000",   // 3 seconds
+            "enable.auto.commit=false"
+    })
     public void receiveData(String message) {
         try {
-            System.out.println("Received data from Kafka: " + message);
+
 
             ObjectMapper objectMapper = new ObjectMapper();
             Map<String, Object> receivedData = objectMapper.readValue(message, Map.class);
+            System.out.println("Received synthetic data from Kafka:");
+            for (Map.Entry<String, Object> entry : receivedData.entrySet()) {
+                System.out.println(entry.getKey() + " => " + entry.getValue());
+            }
 
             Integer satelliteId = (Integer) receivedData.get("satellite_id");
             String satelliteName = (String) receivedData.get("satellite_name");
             String tleLine1 = (String) receivedData.get("tle_line1");
             String tleLine2 = (String) receivedData.get("tle_line2");
             Integer timeSinceLaunch = calculateTimeSinceLaunch(tleLine1);
-            Double altitudeDouble = (Double) receivedData.get("orbital_altitude");
-            Float orbital_altitude = altitudeDouble.floatValue();
-            Float batteryVoltage = (Float) receivedData.get("battery_voltage");
-            Float solarPanelTemperature = (Float) receivedData.get("solar_panel_temperature");
-            Float attitudeControlError = (Float) receivedData.get("attitude_control_error");
-            Float dataTransmissionRate = (Float) receivedData.get("data_transmission_rate");
-            Float thermalControlStatus = (Float) receivedData.get("thermal_control_status");
 
+            Double orbitalAltitudeDouble = (Double) receivedData.get("orbital_altitude");
+            Integer orbital_altitude = orbitalAltitudeDouble != null ? orbitalAltitudeDouble.intValue() : null;
+
+            Double batteryVoltageDouble = (Double) receivedData.get("battery_voltage");
+            Float batteryVoltage = batteryVoltageDouble != null ? batteryVoltageDouble.floatValue() : null;
+            Double solarPanelTempDouble = (Double) receivedData.get("solar_panel_temperature");
+            Float solarPanelTemperature = solarPanelTempDouble != null ? solarPanelTempDouble.floatValue() : null;
+
+            Double attitudeErrorDouble = (Double) receivedData.get("attitude_control_error");
+            Float attitudeControlError = attitudeErrorDouble != null ? attitudeErrorDouble.floatValue() : null;
+
+            Double dataRateDouble = (Double) receivedData.get("data_transmission_rate");
+            Float dataTransmissionRate = dataRateDouble != null ? dataRateDouble.floatValue() : null;
+
+            Integer thermalControlStatus = (Integer) receivedData.get("thermal_control_status");
             double line1_epoch = Double.parseDouble(tleLine1.substring(18, 32).trim());
             double inclination = Double.parseDouble(tleLine2.substring(8, 16).trim());
             double raan = Double.parseDouble(tleLine2.substring(17, 25).trim());
@@ -91,8 +112,8 @@ public class KafkaConsumerService {
     }
 
     private void sendToHealthTopic(Integer satelliteId, String satelliteName, Integer timeSinceLaunch,
-                                   Float orbitalAltitude, Float batteryVoltage, Float solarPanelTemperature,
-                                   Float attitudeControlError, Float dataTransmissionRate, Float thermalControlStatus) {
+                                   Integer orbitalAltitude, Float batteryVoltage, Float solarPanelTemperature,
+                                   Float attitudeControlError, Float dataTransmissionRate, Integer thermalControlStatus) {
         try {
             Map<String, Object> healthData = Map.of(
                     "satellite_id", satelliteId,
@@ -113,7 +134,7 @@ public class KafkaConsumerService {
         }
     }
 
-    private void sendToEndOfLifeTopic(Integer satelliteId, String satelliteName, Float orbital_altitude,
+    private void sendToEndOfLifeTopic(Integer satelliteId, String satelliteName, Integer orbital_altitude,
                                       Double orbital_velocity_approx, Integer collisionWarning, Double eccentricity,
                                       Double mean_motion, Double motion_launch_interaction, Double raan, Double line1_epoch) {
         try {
