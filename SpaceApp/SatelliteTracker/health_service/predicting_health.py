@@ -34,12 +34,14 @@ def start_health_data_consumer():
             if prediction_result:
                 
                 processed_data = {
-                        "features": data,
-                        "prediction": prediction_result
+                    "features": data,
+                    "prediction": prediction_result["prediction"],
+                    "probability": prediction_result["probability"],
+                    "explanation": prediction_result["explanation"]
                 }
                 processed_data_json = json.dumps(processed_data)
 
-                producer.produce('processedDataTopic', value=processed_data_json)
+                producer.produce('healthPrediction', value=processed_data_json)
                 producer.flush()
                 print("Processed data sent back to Kafka.")
 
@@ -67,5 +69,19 @@ def predict_health_status(data):
     scaled_features = scaler.transform(features)
 
     # Make prediction
-    prediction = model.predict(scaled_features)[0]
-    return prediction
+    #prediction = model.predict(scaled_features)[0]
+
+     # Predict class
+    prediction = int(model.predict(scaled_features)[0])
+
+    # Predict probability
+    probability = float(model.predict_proba(scaled_features)[0][1])  # Prob. of class '1'
+
+
+    # Explainability using SHAP
+    explainer = shap.Explainer(model, scaler.transform)
+    shap_values = explainer(scaled_features)
+    explanation = dict(zip(feature_names, shap_values.values[0].tolist()))
+    return {"prediction": prediction,
+        "probability": probability,
+        "explanation": explanation}
