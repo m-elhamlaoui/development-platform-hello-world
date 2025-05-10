@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import net.bouraoui.fetchingdata.Entities.Satellite;
 import net.bouraoui.fetchingdata.Services.Interfaces.SatelliteService;
-import net.bouraoui.fetchingdata.Services.Interfaces.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
