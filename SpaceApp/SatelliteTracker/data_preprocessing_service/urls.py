@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from . import views
 
 urlpatterns = [
     path('data/', admin.site.urls),
+    path("tle/<int:satellite_id>/", views.get_tle_data, name="get_tle_data"),
 ]

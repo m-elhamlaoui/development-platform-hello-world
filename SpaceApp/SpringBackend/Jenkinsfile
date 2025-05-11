@@ -1,0 +1,74 @@
+// File: spring-app/Jenkinsfile
+
+pipeline {
+    agent any
+
+    environment {
+        LOCAL_REGISTRY = 'localhost:32000'
+        SERVICES = ['gateway-service', 'auth-service', 'collision-service']
+    }
+
+    stages {
+
+        stage('Checkout Code') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build JARs') {
+            steps {
+                script {
+                    for (svc in SERVICES) {
+                        echo "Building ${svc}.jar..."
+                        dir(svc) {
+                            sh './mvnw clean package -DskipTests'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    for (svc in SERVICES) {
+                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
+                        echo "Building Docker image for ${svc}..."
+                        dir(svc) {
+                            sh "docker build -t ${image} ."
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Push to MicroK8s Registry') {
+            steps {
+                script {
+                    for (svc in SERVICES) {
+                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
+                        echo "Pushing Docker image for ${svc}..."
+                        sh "docker push ${image}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy All Microservices') {
+            steps {
+                echo "Deploying Spring Boot app (all services)..."
+                sh "microk8s kubectl apply -f k8s/spring-app-deployment.yaml"
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '✅ Spring Boot app deployed successfully.'
+        }
+        failure {
+            echo '❌ Deployment failed.'
+        }
+    }
+}
