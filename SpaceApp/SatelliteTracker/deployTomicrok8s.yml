@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: satellite-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: satellite-app
+  template:
+    metadata:
+      labels:
+        app: satellite-app
+    spec:
+      containers:
+      - name: satellite-app
+        image: your-registry/satellite-app:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: KAFKA_BOOTSTRAP_SERVERS
+          value: kafka.default.svc.cluster.local:9092

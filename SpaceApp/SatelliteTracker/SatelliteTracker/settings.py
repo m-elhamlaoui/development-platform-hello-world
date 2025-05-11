@@ -37,6 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'SatelliteTracker',
+    'django_celery_beat',
+    'data_preprocessing_service',
+    'health_service'
 ]
 
 MIDDLEWARE = [
@@ -120,3 +124,9 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# settings.py
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Redis broker URL
+CELERY_ACCEPT_CONTENT = ['json']  # Accepted content formats
+CELERY_TASK_SERIALIZER = 'json'   # Task serialization format
