@@ -8,14 +8,20 @@ import com.example.collisionservice.service.CollisionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/collisions")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true", maxAge = 3600)
+@RequestMapping("/api/collisions/")
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:8080"}, allowCredentials = "true", maxAge = 3600)
 public class CollisionController {
 
     @Autowired
     private CollisionService collisionService;
+
+    @GetMapping("/test")
+    public Map<String, String> test() {
+        return Map.of("status", "CollisionService is running", "time", java.time.LocalDateTime.now().toString());
+    }
 
     @GetMapping
     public List<CollisionAlert> getCollisions() {
