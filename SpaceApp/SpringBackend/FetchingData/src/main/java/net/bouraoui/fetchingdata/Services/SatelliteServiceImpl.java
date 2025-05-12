@@ -21,4 +21,9 @@ public class SatelliteServiceImpl implements SatelliteService {
         Pageable limit = PageRequest.of(0, 30);
         return satelliteRepository.findTop30ByPopularYes(limit);
     }
+
+    @Override
+    public List<Satellite> findAllById(List<String> ids){
+        return satelliteRepository.findAllById(ids);
+    }
 }
