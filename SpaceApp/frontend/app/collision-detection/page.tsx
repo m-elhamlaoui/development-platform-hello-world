@@ -16,7 +16,6 @@ import {
   Satellite,
   X,
   Download,
-  Share2,
   BarChart4,
   Orbit,
   Rocket,
@@ -34,13 +33,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CollisionChart } from "@/components/collision-chart"
 import { CollisionPredictionModal } from "@/components/collision-prediction-modal"
-import { mockCollisionData } from "@/lib/mock-collision-data"
+import { fetchCollisions, fetchCollisionStats, fetchCollisionTimeline, type CollisionAlert, type CollisionStats, type PaginatedResponse } from "@/lib/collision-service"
 import { Progress } from "@/components/ui/progress"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
 import { toast } from "@/components/ui/use-toast"
 import { SatelliteOrbitVisualization } from "@/components/satellite-orbit-visualization"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { format, formatDistanceToNow, parseISO, getDayOfYear } from 'date-fns'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function CollisionDetectionPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -49,68 +56,173 @@ export default function CollisionDetectionPage() {
   const [viewMode, setViewMode] = useState("table")
   const [timeRange, setTimeRange] = useState("7d")
   const [isLoading, setIsLoading] = useState(true)
-  const [lastUpdated, setLastUpdated] = useState(new Date())
-  const [selectedCollision, setSelectedCollision] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState<string>("")
+  const [selectedCollision, setSelectedCollision] = useState<CollisionAlert | null>(null)
   const [showVisualization, setShowVisualization] = useState(false)
-  const [criticalCount, setCriticalCount] = useState(2)
-  const [warningCount, setWarningCount] = useState(5)
-  const [lowRiskCount, setLowRiskCount] = useState(17)
+  const [criticalCount, setCriticalCount] = useState(0)
+  const [warningCount, setWarningCount] = useState(0)
+  const [lowRiskCount, setLowRiskCount] = useState(0)
+  const [collisions, setCollisions] = useState<CollisionAlert[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(10)
+  const [totalCollisions, setTotalCollisions] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: 'asc' | 'desc';
+  }>({
+    key: 'time',
+    direction: 'asc'
+  });
+  const [timeRangeFilter, setTimeRangeFilter] = useState("all")
+  const [distanceFilter, setDistanceFilter] = useState("all")
+  const [trendFilter, setTrendFilter] = useState("all")
+  const [activeAction, setActiveAction] = useState<string | null>(null)
 
-  // Simulate loading state
+  // Update time display on client-side only
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 1500)
-    return () => clearTimeout(timer)
+    const updateTime = () => {
+      setLastUpdated(new Date().toLocaleTimeString())
+    }
+    updateTime()
+    const interval = setInterval(updateTime, 1000)
+    return () => clearInterval(interval)
   }, [])
 
-  // Simulate real-time updates
+  // Load data function
+  const loadData = async (page = 1, append = false) => {
+    try {
+      if (append) {
+        setIsLoadingMore(true)
+      } else {
+        setIsLoading(true)
+      }
+
+      const [collisionResponse, stats] = await Promise.all([
+        fetchCollisions(page, pageSize),
+        fetchCollisionStats()
+      ])
+      
+      setCollisions(prev => append ? [...prev, ...collisionResponse.data] : collisionResponse.data)
+      setTotalCollisions(collisionResponse.total)
+      setHasMore(collisionResponse.hasMore)
+      setCurrentPage(collisionResponse.page)
+      
+      setCriticalCount(stats.dangerLevels.critical)
+      setWarningCount(stats.dangerLevels.high)
+      setLowRiskCount(stats.dangerLevels.low + stats.dangerLevels.moderate)
+      setError(null)
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load collision data'
+      setError(errorMessage)
+      console.error('Error loading data:', err)
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    }
+  }
+
+  // Fetch initial data
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  // Real-time updates
   useEffect(() => {
     if (!realTimeUpdates) return
 
-    const interval = setInterval(() => {
-      setLastUpdated(new Date())
+    const interval = setInterval(async () => {
+      try {
+        const [collisionResponse, stats] = await Promise.all([
+          fetchCollisions(currentPage, pageSize),
+          fetchCollisionStats()
+        ])
+        
+        setCollisions(collisionResponse.data)
+        setTotalCollisions(collisionResponse.total)
+        setHasMore(collisionResponse.hasMore)
+        
+        setCriticalCount(stats.dangerLevels.critical)
+        setWarningCount(stats.dangerLevels.high)
+        setLowRiskCount(stats.dangerLevels.low + stats.dangerLevels.moderate)
+        setError(null)
 
-      // Randomly update counts to simulate changing data
-      if (Math.random() > 0.7) {
-        const change = Math.random() > 0.5 ? 1 : -1
-        if (Math.random() > 0.7) {
-          setCriticalCount((prev) => Math.max(0, prev + change))
-        } else if (Math.random() > 0.5) {
-          setWarningCount((prev) => Math.max(0, prev + change))
-        } else {
-          setLowRiskCount((prev) => Math.max(0, prev + change))
-        }
+        toast({
+          title: "Data Updated",
+          description: "Collision prediction data has been refreshed",
+          duration: 2000,
+        })
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to update collision data'
+        setError(errorMessage)
+        console.error('Error updating data:', err)
+        
+        toast({
+          title: "Update Failed",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 3000,
+        })
       }
-
-      toast({
-        title: "Data Updated",
-        description: "Collision prediction data has been refreshed",
-        duration: 2000,
-      })
     }, 60000) // Update every minute
 
     return () => clearInterval(interval)
-  }, [realTimeUpdates])
+  }, [realTimeUpdates, currentPage, pageSize])
 
-  const handleRefresh = () => {
-    setLastUpdated(new Date())
-    toast({
-      title: "Data Refreshed",
-      description: "Latest collision prediction data has been loaded.",
-    })
+  // Load more data function
+  const handleLoadMore = async () => {
+    if (hasMore) {
+      setIsLoadingMore(true)
+      try {
+        const nextPage = currentPage + 1
+        const response = await fetchCollisions(nextPage, pageSize)
+        setCollisions(prev => [...prev, ...response.data])
+        setCurrentPage(nextPage)
+        setHasMore(response.hasMore)
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load more data",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoadingMore(false)
+      }
+    }
+  }
+
+  // Pagination handlers
+  const handleNextPage = async () => {
+    if (hasMore) {
+      await loadData(currentPage + 1)
+    }
+  }
+
+  const handlePreviousPage = async () => {
+    if (currentPage > 1) {
+      await loadData(currentPage - 1)
+    }
+  }
+
+  const handleRefresh = async () => {
+    await loadData(currentPage)
   }
 
   const handleResetFilters = () => {
     setSearchQuery("")
     setRiskFilter("all")
+    setTimeRangeFilter("all")
+    setDistanceFilter("all")
+    setTrendFilter("all")
     toast({
       title: "Filters Reset",
       description: "All filters have been cleared.",
     })
   }
 
-  const handleCollisionSelect = (collision) => {
+  const handleCollisionSelect = (collision: CollisionAlert) => {
     setSelectedCollision(collision)
     setShowVisualization(true)
   }
@@ -119,31 +231,185 @@ export default function CollisionDetectionPage() {
     setShowVisualization(false)
   }
 
-  const handleExportData = () => {
-    toast({
-      title: "Export Started",
-      description: "Collision prediction data is being exported to CSV.",
-    })
+  const handleExportData = async () => {
+    try {
+      // Create CSV content
+      const headers = ['ID', 'Primary Satellite', 'Secondary Satellite', 'Time', 'Distance (km)', 'Danger Level', 'Trend', 'Distance Trend']
+      const csvContent = [
+        headers.join(','),
+        ...filteredCollisions.map(collision => [
+          collision.id,
+          collision.satellites[0],
+          collision.satellites[1],
+          collision.time,
+          collision.distance_km,
+          collision.danger_level,
+          collision.trend,
+          collision.distance_trend
+        ].join(','))
+      ].join('\n')
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `collision-data-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      toast({
+        title: "Export Successful",
+        description: "Collision data has been exported to CSV",
+      })
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Failed to export collision data",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleShareReport = () => {
-    toast({
-      title: "Report Shared",
-      description: "Collision prediction report has been shared with your team.",
-    })
+  // Quick action handlers
+  const handleQuickAction = (action: string) => {
+    setActiveAction(action)
   }
 
-  // Filter collision data based on search and risk filter
-  const filteredCollisions = mockCollisionData.filter((collision) => {
+  const handleCloseAction = () => {
+    setActiveAction(null)
+  }
+
+  // Filter collision data based on all filters
+  const filteredCollisions = (collisions || []).filter((collision) => {
+    if (!collision || !collision.satellites || !Array.isArray(collision.satellites)) {
+      return false;
+    }
+
+    // Search filter
     const matchesSearch =
-      collision.primaryObject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      collision.secondaryObject.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRisk = riskFilter === "all" || collision.riskLevel.toLowerCase() === riskFilter.toLowerCase()
-    return matchesSearch && matchesRisk
-  })
+      collision.satellites[0]?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      collision.satellites[1]?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    // Risk filter
+    const matchesRisk = riskFilter === "all" || 
+      (riskFilter === "critical" && collision.danger_level === "CRITICAL") ||
+      (riskFilter === "high" && collision.danger_level === "HIGH") ||
+      (riskFilter === "moderate" && collision.danger_level === "MODERATE") ||
+      (riskFilter === "low" && collision.danger_level === "LOW");
+
+    // Time range filter
+    const collisionTime = new Date(collision.time).getTime();
+    const now = new Date().getTime();
+    const timeDiff = now - collisionTime;
+    const matchesTimeRange = timeRangeFilter === "all" ||
+      (timeRangeFilter === "last24h" && timeDiff <= 24 * 60 * 60 * 1000) ||
+      (timeRangeFilter === "last7d" && timeDiff <= 7 * 24 * 60 * 60 * 1000) ||
+      (timeRangeFilter === "last30d" && timeDiff <= 30 * 24 * 60 * 60 * 1000) ||
+      (timeRangeFilter === "older" && timeDiff > 30 * 24 * 60 * 60 * 1000);
+
+    // Distance filter
+    const matchesDistance = distanceFilter === "all" ||
+      (distanceFilter === "veryClose" && collision.distance_km <= 1) ||
+      (distanceFilter === "close" && collision.distance_km > 1 && collision.distance_km <= 5) ||
+      (distanceFilter === "medium" && collision.distance_km > 5 && collision.distance_km <= 10) ||
+      (distanceFilter === "far" && collision.distance_km > 10);
+
+    // Trend filter
+    const matchesTrend = trendFilter === "all" ||
+      (trendFilter === "increasing" && collision.trend.toLowerCase().includes("increasing")) ||
+      (trendFilter === "decreasing" && collision.trend.toLowerCase().includes("decreasing")) ||
+      (trendFilter === "stable" && collision.trend.toLowerCase().includes("stable"));
+
+    return matchesSearch && matchesRisk && matchesTimeRange && matchesDistance && matchesTrend;
+  });
 
   // Calculate total events
   const totalEvents = criticalCount + warningCount + lowRiskCount
+
+  // Sort function to calculate time difference from now
+  const getTimeDifference = (timeStr: string) => {
+    const collisionTime = new Date(timeStr).getTime();
+    const now = new Date().getTime();
+    return Math.abs(collisionTime - now);
+  };
+
+  // Sorting function
+  const sortCollisions = (collisions: CollisionAlert[]) => {
+    if (!sortConfig) return collisions;
+
+    return [...collisions].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortConfig.key) {
+        case 'time':
+          // Sort by closest time to now
+          aValue = getTimeDifference(a.time);
+          bValue = getTimeDifference(b.time);
+          break;
+        case 'danger_level':
+          const dangerOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MODERATE': 2, 'LOW': 3 };
+          aValue = dangerOrder[a.danger_level as keyof typeof dangerOrder] ?? 4;
+          bValue = dangerOrder[b.danger_level as keyof typeof dangerOrder] ?? 4;
+          break;
+        case 'primary_object':
+          aValue = a.satellites[0];
+          bValue = b.satellites[0];
+          break;
+        case 'secondary_object':
+          aValue = a.satellites[1];
+          bValue = b.satellites[1];
+          break;
+        case 'distance':
+          aValue = a.distance_km;
+          bValue = b.distance_km;
+          break;
+        case 'probability':
+          aValue = a.trend;
+          bValue = b.trend;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue < bValue) {
+        return sortConfig.direction === 'asc' ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === 'asc' ? 1 : -1;
+      }
+      return 0;
+    });
+  };
+
+  // Sort handler
+  const handleSort = (key: string) => {
+    setSortConfig(current => ({
+      key,
+      direction: current?.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  // Apply sorting to filtered collisions
+  const sortedCollisions = sortCollisions(filteredCollisions);
+
+  // Format time display
+  const formatTimeDisplay = (timeStr: string) => {
+    const date = parseISO(timeStr);
+    const now = new Date();
+    const isPast = date < now;
+    
+    return {
+      fullDate: format(date, 'yyyy-MM-dd HH:mm:ss'),
+      relativeTime: formatDistanceToNow(date, { addSuffix: true }),
+      year: format(date, 'yyyy'),
+      dayOfYear: getDayOfYear(date),
+      isPast
+    };
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0f1520] text-white">
@@ -193,7 +459,7 @@ export default function CollisionDetectionPage() {
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="h-4 w-4 text-blue-400" />
                 <span className="text-gray-400">Last updated:</span>
-                <span>{lastUpdated.toLocaleTimeString()}</span>
+                <span>{lastUpdated || "Loading..."}</span>
               </div>
 
               <div className="flex gap-2">
@@ -205,17 +471,6 @@ export default function CollisionDetectionPage() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Export data</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-9 w-9" onClick={handleShareReport}>
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Share report</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
 
@@ -275,7 +530,7 @@ export default function CollisionDetectionPage() {
                   <Clock className="mr-1 h-3 w-3 text-yellow-500" />
                   <span>Monitor closely</span>
                 </div>
-                <Badge variant="warning">Caution</Badge>
+                <Badge variant="secondary">Caution</Badge>
               </div>
             </CardContent>
           </Card>
@@ -303,22 +558,18 @@ export default function CollisionDetectionPage() {
 
           <Card className="overflow-hidden border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Monitored Objects</CardTitle>
+              <CardTitle className="text-sm font-medium">Active Satellites</CardTitle>
               <div className="rounded-full bg-blue-100 p-1 dark:bg-blue-900/20">
                 <Satellite className="h-4 w-4 text-blue-500" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-blue-400 glow-text-blue">1,248</div>
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Active satellites</span>
-                  <span>86</span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Debris objects</span>
-                  <span>1,162</span>
-                </div>
+              <div className="text-2xl font-bold text-blue-400 glow-text-blue">86</div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                <span>Currently monitored</span>
+                <Badge variant="outline" className="text-blue-400 border-blue-400">
+                  Active
+                </Badge>
               </div>
             </CardContent>
           </Card>
@@ -350,7 +601,7 @@ export default function CollisionDetectionPage() {
               </div>
             </CardHeader>
             <CardContent className="h-[300px]">
-              <CollisionChart />
+              <CollisionChart timeRange={timeRange} />
             </CardContent>
           </Card>
 
@@ -403,20 +654,40 @@ export default function CollisionDetectionPage() {
 
               <div className="mt-6 pt-6 border-t border-gray-700">
                 <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="flex items-center justify-start">
+                <div className="mt-6 grid grid-cols-2 gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center justify-start"
+                    onClick={() => handleQuickAction('alerts')}
+                  >
                     <Bell className="h-3.5 w-3.5 mr-2" />
                     <span>Alerts</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex items-center justify-start">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center justify-start"
+                    onClick={() => handleQuickAction('maneuvers')}
+                  >
                     <Rocket className="h-3.5 w-3.5 mr-2" />
                     <span>Maneuvers</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex items-center justify-start">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center justify-start"
+                    onClick={() => handleQuickAction('reports')}
+                  >
                     <BarChart4 className="h-3.5 w-3.5 mr-2" />
                     <span>Reports</span>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex items-center justify-start">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex items-center justify-start"
+                    onClick={() => handleQuickAction('tracking')}
+                  >
                     <Radar className="h-3.5 w-3.5 mr-2" />
                     <span>Tracking</span>
                   </Button>
@@ -435,7 +706,7 @@ export default function CollisionDetectionPage() {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-semibold fancy-title">Collision Predictions</h2>
-              <Badge variant="outline" className="ml-2 bg-slate-100 dark:bg-slate-800">
+              <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-200 border-slate-700">
                 {filteredCollisions.length} events
               </Badge>
             </div>
@@ -465,13 +736,49 @@ export default function CollisionDetectionPage() {
                 </Button>
                 <Select value={riskFilter} onValueChange={setRiskFilter}>
                   <SelectTrigger className="w-[130px] rounded-full">
-                    <SelectValue placeholder="Filter by" />
+                    <SelectValue placeholder="Risk Level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Events</SelectItem>
+                    <SelectItem value="all">All Risk Levels</SelectItem>
+                    <SelectItem value="critical">Critical Risk</SelectItem>
                     <SelectItem value="high">High Risk</SelectItem>
-                    <SelectItem value="medium">Medium Risk</SelectItem>
+                    <SelectItem value="moderate">Moderate Risk</SelectItem>
                     <SelectItem value="low">Low Risk</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={timeRangeFilter} onValueChange={setTimeRangeFilter}>
+                  <SelectTrigger className="w-[130px] rounded-full">
+                    <SelectValue placeholder="Time Range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="last24h">Last 24 Hours</SelectItem>
+                    <SelectItem value="last7d">Last 7 Days</SelectItem>
+                    <SelectItem value="last30d">Last 30 Days</SelectItem>
+                    <SelectItem value="older">Older Events</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={distanceFilter} onValueChange={setDistanceFilter}>
+                  <SelectTrigger className="w-[130px] rounded-full">
+                    <SelectValue placeholder="Distance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Distances</SelectItem>
+                    <SelectItem value="veryClose">Very Close (≤1 km)</SelectItem>
+                    <SelectItem value="close">Close (1-5 km)</SelectItem>
+                    <SelectItem value="medium">Medium (5-10 km)</SelectItem>
+                    <SelectItem value="far">Far (&gt;10 km)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={trendFilter} onValueChange={setTrendFilter}>
+                  <SelectTrigger className="w-[130px] rounded-full">
+                    <SelectValue placeholder="Trend" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Trends</SelectItem>
+                    <SelectItem value="increasing">Increasing</SelectItem>
+                    <SelectItem value="decreasing">Decreasing</SelectItem>
+                    <SelectItem value="stable">Stable</SelectItem>
                   </SelectContent>
                 </Select>
                 <Button variant="outline" size="sm" onClick={handleResetFilters}>
@@ -503,34 +810,78 @@ export default function CollisionDetectionPage() {
                         <TableHead className="w-[100px]">
                           <div className="flex items-center gap-1">
                             Risk Level
-                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full">
-                              <ArrowDownUp className="h-3 w-3" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('danger_level')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'danger_level' ? 'text-primary' : ''}`} />
                             </Button>
                           </div>
                         </TableHead>
-                        <TableHead>Primary Object</TableHead>
-                        <TableHead>Secondary Object</TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            Primary Object
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('primary_object')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'primary_object' ? 'text-primary' : ''}`} />
+                            </Button>
+                          </div>
+                        </TableHead>
+                        <TableHead>
+                          <div className="flex items-center gap-1">
+                            Secondary Object
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('secondary_object')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'secondary_object' ? 'text-primary' : ''}`} />
+                            </Button>
+                          </div>
+                        </TableHead>
                         <TableHead>
                           <div className="flex items-center gap-1">
                             Time to Closest Approach
-                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full">
-                              <ArrowDownUp className="h-3 w-3" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('time')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'time' ? 'text-primary' : ''}`} />
                             </Button>
                           </div>
                         </TableHead>
                         <TableHead>
                           <div className="flex items-center gap-1">
                             Miss Distance
-                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full">
-                              <ArrowDownUp className="h-3 w-3" />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('distance')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'distance' ? 'text-primary' : ''}`} />
                             </Button>
                           </div>
                         </TableHead>
                         <TableHead>
                           <div className="flex items-center gap-1">
-                            Probability
-                            <Button variant="ghost" size="icon" className="h-5 w-5 rounded-full">
-                              <ArrowDownUp className="h-3 w-3" />
+                            Trend Analysis
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-5 w-5 rounded-full"
+                              onClick={() => handleSort('probability')}
+                            >
+                              <ArrowDownUp className={`h-3 w-3 ${sortConfig?.key === 'probability' ? 'text-primary' : ''}`} />
                             </Button>
                           </div>
                         </TableHead>
@@ -538,38 +889,54 @@ export default function CollisionDetectionPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredCollisions.length > 0 ? (
-                        filteredCollisions.map((collision) => (
+                      {sortedCollisions.length > 0 ? (
+                        sortedCollisions.map((collision) => (
                           <TableRow key={collision.id} className="group">
                             <TableCell>
                               <Badge
                                 variant={
-                                  collision.riskLevel === "High"
+                                  collision.danger_level === "CRITICAL"
                                     ? "destructive"
-                                    : collision.riskLevel === "Medium"
-                                      ? "warning"
+                                    : collision.danger_level === "HIGH"
+                                      ? "secondary"
                                       : "outline"
                                 }
-                                className={collision.riskLevel === "High" ? "animate-pulse" : ""}
+                                className={collision.danger_level === "CRITICAL" ? "animate-pulse" : ""}
                               >
-                                {collision.riskLevel}
+                                {collision.danger_level}
                               </Badge>
                             </TableCell>
-                            <TableCell className="font-medium">{collision.primaryObject}</TableCell>
-                            <TableCell>{collision.secondaryObject}</TableCell>
+                            <TableCell className="font-medium">{collision.satellites[0]}</TableCell>
+                            <TableCell>{collision.satellites[1]}</TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                <span>{collision.timeToClosestApproach}</span>
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span>{formatTimeDisplay(collision.time).fullDate}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Badge variant="outline" className="h-5">
+                                    {formatTimeDisplay(collision.time).relativeTime}
+                                  </Badge>
+                                  <span>Y:{formatTimeDisplay(collision.time).year}</span>
+                                  <span>D:{formatTimeDisplay(collision.time).dayOfYear}</span>
+                                  {formatTimeDisplay(collision.time).isPast && (
+                                    <Badge variant="destructive" className="h-5">Past</Badge>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
-                            <TableCell>{collision.missDistance}</TableCell>
+                            <TableCell>{collision.distance_km.toFixed(2)} km</TableCell>
                             <TableCell>
-                              <div className="flex items-center gap-2">
-                                <span>{collision.probability}</span>
-                                {Number.parseFloat(collision.probability) > 0.01 && (
-                                  <span className="inline-block h-2 w-2 rounded-full bg-red-500"></span>
-                                )}
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+                                  <span>{collision.trend}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <TrendingDown className="h-3.5 w-3.5" />
+                                  <span>{collision.distance_trend}</span>
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -607,85 +974,107 @@ export default function CollisionDetectionPage() {
                 </CardContent>
                 <CardFooter className="flex items-center justify-between border-t px-6 py-3">
                   <div className="text-xs text-muted-foreground">
-                    Showing <strong>{filteredCollisions.length}</strong> of <strong>24</strong> results
+                    Showing <strong>{sortedCollisions.length}</strong> of <strong>{totalCollisions}</strong> results
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" disabled className="rounded-full">
-                      Previous
+                  {hasMore && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="rounded-full"
+                      onClick={handleLoadMore}
+                      disabled={isLoadingMore}
+                    >
+                      {isLoadingMore ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        'Load More'
+                      )}
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      Next
-                    </Button>
-                  </div>
+                  )}
                 </CardFooter>
               </Card>
             </TabsContent>
             <TabsContent value="cards" className="mt-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredCollisions.length > 0 ? (
-                  filteredCollisions.slice(0, 6).map((collision) => (
-                    <Card
-                      key={collision.id}
-                      className={`overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 ${
-                        collision.riskLevel === "High"
-                          ? "border-red-200 dark:border-red-900/50"
-                          : collision.riskLevel === "Medium"
-                            ? "border-yellow-200 dark:border-yellow-900/50"
-                            : ""
-                      }`}
-                    >
-                      <CardHeader className="p-4 pb-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="line-clamp-1 text-base">{collision.primaryObject}</CardTitle>
-                            <CardDescription className="line-clamp-1">vs {collision.secondaryObject}</CardDescription>
+                {sortedCollisions.length > 0 ? (
+                  <>
+                    {sortedCollisions.map((collision) => (
+                      <Card
+                        key={collision.id}
+                        className={`overflow-hidden shadow-md hover:shadow-lg transition-all duration-200 ${
+                          collision.danger_level === "CRITICAL"
+                            ? "border-red-200 dark:border-red-900/50"
+                            : collision.danger_level === "HIGH"
+                              ? "border-yellow-200 dark:border-yellow-900/50"
+                              : ""
+                        }`}
+                      >
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="line-clamp-1 text-base">{collision.satellites[0]}</CardTitle>
+                              <CardDescription className="line-clamp-1">vs {collision.satellites[1]}</CardDescription>
+                            </div>
+                            <Badge
+                              variant={
+                                collision.danger_level === "CRITICAL"
+                                  ? "destructive"
+                                  : collision.danger_level === "HIGH"
+                                    ? "secondary"
+                                    : "outline"
+                              }
+                              className={`${collision.danger_level === "CRITICAL" ? "animate-pulse" : ""}`}
+                            >
+                              {collision.danger_level}
+                            </Badge>
                           </div>
-                          <Badge
-                            variant={
-                              collision.riskLevel === "High"
-                                ? "destructive"
-                                : collision.riskLevel === "Medium"
-                                  ? "warning"
-                                  : "outline"
-                            }
-                            className={`${collision.riskLevel === "High" ? "animate-pulse" : ""}`}
+                        </CardHeader>
+                        <CardContent className="grid grid-cols-2 gap-3 p-4 pt-2 text-sm">
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="text-xs text-muted-foreground">Time to CA</div>
+                            <div className="font-medium">{formatTimeDisplay(collision.time).fullDate}</div>
+                            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                              <Badge variant="outline" className="h-5">
+                                {formatTimeDisplay(collision.time).relativeTime}
+                              </Badge>
+                              <span>Y:{formatTimeDisplay(collision.time).year}</span>
+                              <span>D:{formatTimeDisplay(collision.time).dayOfYear}</span>
+                              {formatTimeDisplay(collision.time).isPast && (
+                                <Badge variant="destructive" className="h-5">Past</Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="text-xs text-muted-foreground">Miss Distance</div>
+                            <div className="font-medium">{collision.distance_km.toFixed(2)} km</div>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="text-xs text-muted-foreground">Trend</div>
+                            <div className="font-medium">{collision.trend}</div>
+                          </div>
+                          <div className="rounded-lg bg-muted/50 p-2">
+                            <div className="text-xs text-muted-foreground">Distance Trend</div>
+                            <div className="font-medium">{collision.distance_trend}</div>
+                          </div>
+                        </CardContent>
+                        <CardFooter className="border-t p-4 flex justify-between">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => handleCollisionSelect(collision)}
                           >
-                            {collision.riskLevel}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="grid grid-cols-2 gap-3 p-4 pt-2 text-sm">
-                        <div className="rounded-lg bg-muted/50 p-2">
-                          <div className="text-xs text-muted-foreground">Time to CA</div>
-                          <div className="font-medium">{collision.timeToClosestApproach}</div>
-                        </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
-                          <div className="text-xs text-muted-foreground">Miss Distance</div>
-                          <div className="font-medium">{collision.missDistance}</div>
-                        </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
-                          <div className="text-xs text-muted-foreground">Probability</div>
-                          <div className="font-medium">{collision.probability}</div>
-                        </div>
-                        <div className="rounded-lg bg-muted/50 p-2">
-                          <div className="text-xs text-muted-foreground">Relative Velocity</div>
-                          <div className="font-medium">{collision.relativeVelocity}</div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="border-t p-4 flex justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8"
-                          onClick={() => handleCollisionSelect(collision)}
-                        >
-                          <Orbit className="h-4 w-4 mr-2" />
-                          Visualize
-                        </Button>
-                        <CollisionPredictionModal collision={collision} buttonVariant="default" buttonClassName="h-8" />
-                      </CardFooter>
-                    </Card>
-                  ))
+                            <Orbit className="h-4 w-4 mr-2" />
+                            Visualize
+                          </Button>
+                          <CollisionPredictionModal collision={collision} buttonVariant="default" buttonClassName="h-8" />
+                        </CardFooter>
+                      </Card>
+                    ))}
+                  </>
                 ) : (
                   <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                     <Search className="h-12 w-12 text-muted-foreground mb-4" />
@@ -697,10 +1086,22 @@ export default function CollisionDetectionPage() {
                   </div>
                 )}
               </div>
-              {filteredCollisions.length > 6 && (
+              {hasMore && (
                 <div className="mt-6 flex items-center justify-center">
-                  <Button variant="outline" className="rounded-full px-6">
-                    Load More
+                  <Button 
+                    variant="outline" 
+                    className="rounded-full px-6"
+                    onClick={() => loadData(currentPage + 1, true)}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More'
+                    )}
                   </Button>
                 </div>
               )}
@@ -735,19 +1136,19 @@ export default function CollisionDetectionPage() {
                 <div className="bg-[#131c2e]/80 backdrop-blur-sm p-3 rounded-lg border border-[#1e2a41]">
                   <h3 className="text-lg font-bold mb-1">Orbital Visualization</h3>
                   <div className="text-sm text-gray-300 mb-2">
-                    {selectedCollision.primaryObject} vs {selectedCollision.secondaryObject}
+                    {selectedCollision.satellites[0]} vs {selectedCollision.satellites[1]}
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
-                      <span>{selectedCollision.primaryObject}</span>
+                      <span>{selectedCollision.satellites[0]}</span>
                     </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                      <span>{selectedCollision.secondaryObject}</span>
+                      <span>{selectedCollision.satellites[1]}</span>
                     </div>
                   </div>
-                  <div className="mt-3 text-xs text-gray-400">Miss distance: {selectedCollision.missDistance}</div>
+                  <div className="mt-3 text-xs text-gray-400">Miss distance: {selectedCollision.distance_km.toFixed(2)} km</div>
                 </div>
               </div>
 
@@ -755,14 +1156,157 @@ export default function CollisionDetectionPage() {
                 <SatelliteOrbitVisualization
                   position1={[300, 200, 100]}
                   position2={[400, 150, 200]}
-                  distance={Number.parseFloat(selectedCollision.missDistance) || 125}
-                  dangerLevel={selectedCollision.riskLevel.toUpperCase()}
+                  distance={selectedCollision.distance_km || 125}
+                  dangerLevel={selectedCollision.danger_level.toUpperCase()}
                 />
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Quick Action Modals */}
+      <Dialog open={activeAction === 'alerts'} onOpenChange={handleCloseAction}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Active Alerts</DialogTitle>
+            <DialogDescription>Current collision alerts and warnings</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {collisions.filter(c => c.danger_level === "CRITICAL" || c.danger_level === "HIGH").map(collision => (
+              <Card key={collision.id} className="border-l-4 border-l-red-500">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm">{collision.satellites.join(" vs ")}</CardTitle>
+                    <Badge variant="destructive">{collision.danger_level}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Time: {collision.time}</div>
+                    <div>Distance: {collision.distance_km.toFixed(2)} km</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeAction === 'maneuvers'} onOpenChange={handleCloseAction}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Recommended Maneuvers</DialogTitle>
+            <DialogDescription>Suggested orbital adjustments to prevent collisions</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {collisions.filter(c => c.danger_level === "CRITICAL" || c.danger_level === "HIGH").map(collision => (
+              <Card key={collision.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Maneuver for {collision.satellites[0]}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="text-sm">
+                      <span className="font-medium">Recommended Action:</span> Adjust orbit by 0.5 km
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Time Window:</span> {collision.time}
+                    </div>
+                    <div className="text-sm">
+                      <span className="font-medium">Expected Outcome:</span> Increase miss distance to 5 km
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeAction === 'reports'} onOpenChange={handleCloseAction}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Collision Reports</DialogTitle>
+            <DialogDescription>Detailed analysis and statistics</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Risk Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Critical Risk</span>
+                    <span>{criticalCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>High Risk</span>
+                    <span>{warningCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Low Risk</span>
+                    <span>{lowRiskCount}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Recent Collisions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {collisions.slice(0, 5).map(collision => (
+                    <div key={collision.id} className="text-sm">
+                      {collision.satellites.join(" vs ")} - {collision.time}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeAction === 'tracking'} onOpenChange={handleCloseAction}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Real-time Tracking</DialogTitle>
+            <DialogDescription>Current satellite positions and trajectories</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 overflow-y-auto max-h-[calc(80vh-120px)] pr-2">
+            {collisions.map(collision => (
+              <Card key={collision.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{collision.satellites.join(" vs ")}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-xs text-muted-foreground">Primary Position</div>
+                      <div className="text-sm font-mono">
+                        X: {collision.position1_km[0].toFixed(2)} km<br />
+                        Y: {collision.position1_km[1].toFixed(2)} km<br />
+                        Z: {collision.position1_km[2].toFixed(2)} km
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Secondary Position</div>
+                      <div className="text-sm font-mono">
+                        X: {collision.position2_km[0].toFixed(2)} km<br />
+                        Y: {collision.position2_km[1].toFixed(2)} km<br />
+                        Z: {collision.position2_km[2].toFixed(2)} km
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

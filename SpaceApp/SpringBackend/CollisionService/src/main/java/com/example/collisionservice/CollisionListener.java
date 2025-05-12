@@ -1,28 +1,29 @@
 package com.example.collisionservice;
 
-import com.example.collisionservice.model.CollisionAlert;
+import com.example.collisionservice.model.CollisionAlertModel;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 import java.util.List;
 import java.util.Map;
 
-@Service
 @Slf4j
+@Component
 public class CollisionListener {
 
     private static final String KAFKA_TOPIC = "collision_alerts";
     private static final String GROUP_ID = "collision_alerts_group";
 
     @Autowired
-    private MongoTemplate mongoTemplate;
+    private ObjectMapper objectMapper;
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @KafkaListener(
         topics = KAFKA_TOPIC,
@@ -52,6 +53,8 @@ public class CollisionListener {
             String distanceTrend = (String) data.get("distance_trend");
             @SuppressWarnings("unchecked")
             List<Double> distanceHistoryKm = (List<Double>) data.get("distance_history_km");
+            String orbitType = (String) data.get("orbit_type");
+            String status = (String) data.get("status");
 
             log.info("Extracted data:");
             log.info("- Satellites: {}", satellites);
@@ -63,9 +66,11 @@ public class CollisionListener {
             log.info("- Trend: {}", trend);
             log.info("- Distance Trend: {}", distanceTrend);
             log.info("- Distance History: {}", distanceHistoryKm);
+            log.info("- Orbit Type: {}", orbitType);
+            log.info("- Status: {}", status);
 
             // Create CollisionAlert object
-            CollisionAlert alert = new CollisionAlert();
+            CollisionAlertModel alert = new CollisionAlertModel();
             alert.setSatellites(satellites);
             alert.setTime(time);
             alert.setDistanceKm(distanceKm);
@@ -75,13 +80,15 @@ public class CollisionListener {
             alert.setTrend(trend);
             alert.setDistanceTrend(distanceTrend);
             alert.setDistanceHistoryKm(distanceHistoryKm);
+            alert.setOrbitType(orbitType);
+            alert.setStatus(status);
 
             // Save to MongoDB
             log.info("Attempting to save to MongoDB...");
             mongoTemplate.save(alert);
             log.info("Successfully saved to MongoDB:");
             log.info("- Document ID: {}", alert.getId());
-            log.info("- Collection: {}", mongoTemplate.getCollectionName(CollisionAlert.class));
+            log.info("- Collection: {}", mongoTemplate.getCollectionName(CollisionAlertModel.class));
             
             // Acknowledge the message
             ack.acknowledge();

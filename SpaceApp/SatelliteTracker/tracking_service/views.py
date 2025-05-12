@@ -41,7 +41,7 @@ class CollisionPredictionView(APIView):
                 )
 
             # Run predictions
-            predictions = analyzer.run_prediction(hours=0.5)
+            predictions = analyzer.run_prediction(hours=1)
 
             if not predictions:
                 logger.warning("No collision predictions reported")

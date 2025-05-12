@@ -6,7 +6,7 @@ import org.springframework.data.mongodb.core.mapping.Field;
 import java.util.List;
 
 @Document(collection = "collision_alerts")
-public class CollisionAlert {
+public class CollisionAlertModel {
     @Id
     private String id;
     private List<String> satellites;
@@ -31,6 +31,12 @@ public class CollisionAlert {
     @Field("distance_history_km")
     private List<Double> distanceHistoryKm;
 
+    @Field("orbit_type")
+    private String orbitType;
+
+    @Field("status")
+    private String status;
+
     // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -52,4 +58,8 @@ public class CollisionAlert {
     public void setDistanceTrend(String distanceTrend) { this.distanceTrend = distanceTrend; }
     public List<Double> getDistanceHistoryKm() { return distanceHistoryKm; }
     public void setDistanceHistoryKm(List<Double> distanceHistoryKm) { this.distanceHistoryKm = distanceHistoryKm; }
+    public String getOrbitType() { return orbitType; }
+    public void setOrbitType(String orbitType) { this.orbitType = orbitType; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 } 
