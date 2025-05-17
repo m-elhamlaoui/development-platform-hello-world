@@ -10,6 +10,9 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,7 @@ public class ScheduledTask {
         //Integer[] satelliteIds = {4000, 5000};
         System.out.println("the length of satellite +"+cachedSatellites.size());
         for (var satellite : cachedSatellites) {
+            // we will use norad_id as satellite id
             Integer satelliteId = satellite.getNorad_id();
             String tleData = tleDataService.fetchAndSaveTLEData(satelliteId);
             System.out.println("tle data: "+tleData);
@@ -59,6 +63,12 @@ public class ScheduledTask {
                 tleDataMap.put("tle_line1", tleLine1);
                 tleDataMap.put("tle_line2", tleLine2);
 
+                String launchDateStr = satellite.getLaunchDate();
+                tleDataMap.put("launch_date", launchDateStr);
+
+                Integer timeSinceLaunch = calculateTimeSinceLaunch(launchDateStr);
+                tleDataMap.put("time_since_launch", timeSinceLaunch);
+
 
                 ObjectMapper objectMapper = new ObjectMapper();
                 String jsonString = objectMapper.writeValueAsString(tleDataMap);
@@ -69,5 +79,25 @@ public class ScheduledTask {
             }
         }
     }
+    public Integer calculateTimeSinceLaunch(String launchDateStr) {
+        try {
+            if (launchDateStr == null || launchDateStr.isBlank()) {
+                System.err.println("❗ Launch date is null or blank.");
+                return -1;
+            }
+
+            LocalDate launchDate = LocalDate.parse(launchDateStr, DateTimeFormatter.ISO_LOCAL_DATE);
+            LocalDate today = LocalDate.now();
+            long days = ChronoUnit.DAYS.between(launchDate, today);
+
+            System.out.printf("🛰️ %d days since real launch date (%s → %s)%n", days, launchDate, today);
+            return (int) days;
+
+        } catch (Exception e) {
+            System.err.println("❌ Failed to parse launch date: " + launchDateStr);
+            return -1;
+        }
+    }
+
 }
 

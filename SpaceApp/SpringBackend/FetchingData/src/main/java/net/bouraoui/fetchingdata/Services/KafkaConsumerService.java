@@ -48,8 +48,10 @@ public class KafkaConsumerService {
             Integer satelliteId = (Integer) receivedData.get("satellite_id");
             String satelliteName = (String) receivedData.get("satellite_name");
             String tleLine1 = (String) receivedData.get("tle_line1");
+
             String tleLine2 = (String) receivedData.get("tle_line2");
-            Integer timeSinceLaunch = calculateTimeSinceLaunch(tleLine1);
+            Integer timeSinceLaunch = (Integer) receivedData.get("time_since_launch");
+            System.out.println("time snce lanch: "+timeSinceLaunch);
 
             Double orbitalAltitudeDouble = (Double) receivedData.get("orbital_altitude");
             Integer orbital_altitude = orbitalAltitudeDouble != null ? orbitalAltitudeDouble.intValue() : null;
@@ -178,31 +180,38 @@ public class KafkaConsumerService {
 
     public Integer calculateTimeSinceLaunch(String tleLine1) {
         try {
-            // Extract the epoch (positions 18-32 from Line 1)
+            System.out.println("🔍 Raw TLE Line 1: " + tleLine1);
+
             String epochStr = tleLine1.substring(18, 32).trim();
+            System.out.println("🔍 Extracted epoch string: " + epochStr);
 
-            // Extract the year from the epoch (first 2 digits)
+            // Extract year
             String yearStr = epochStr.substring(0, 2);
-            int year = Integer.parseInt(yearStr) + 2000; // Adding 2000 to get the full year
+            int year = Integer.parseInt(yearStr) + 2000;
+            System.out.println("🔍 Parsed year: " + year);
 
-            // Extract day of year and fractional day
+            // Extract day of year
             double dayOfYear = Double.parseDouble(epochStr.substring(2));
+            System.out.println("🔍 Parsed day of year (fractional): " + dayOfYear);
 
-            // Calculate the launch date
-            LocalDate launchDate = LocalDate.of(year, 1, 1).plusDays((long) (dayOfYear - 1)); // Day 1 of the year + dayOfYear-1
+            // Convert to launch date
+            LocalDate launchDate = LocalDate.of(year, 1, 1).plusDays((long) (dayOfYear - 1));
+            System.out.println("📅 Launch date calculated: " + launchDate);
 
-            // Get the current date
-            LocalDate currentDate = LocalDate.now(); // You can replace this with any specific date if needed
+            // Current date
+            LocalDate currentDate = LocalDate.now();
+            System.out.println("📅 Current date: " + currentDate);
 
-            // Calculate the days since launch
             long daysSinceLaunch = ChronoUnit.DAYS.between(launchDate, currentDate);
+            System.out.println("🧮 Days since launch: " + daysSinceLaunch);
 
-            return (int) daysSinceLaunch; // Return the days since launch as an Integer
+            return (int) daysSinceLaunch;
 
         } catch (Exception e) {
-            System.err.println("Error calculating time since launch: " + e.getMessage());
-            return 0; // Return 0 in case of an error
+            System.err.println("❌ Error calculating time since launch: " + e.getMessage());
+            return 0;
         }
     }
+
 
 }

@@ -12,4 +12,8 @@ public interface SatelliteRepository extends MongoRepository<Satellite,String> {
 
     @Query(value = "{ popular: 'yes' }", sort = "{ popular : -1 }")
     List<Satellite> findTop30ByPopularYes(org.springframework.data.domain.Pageable pageable);
+
+    @Query("{ 'norad_id': { $in: ?0 } }")
+    List<Satellite> findSatellitesByNoradIds(List<Integer> noradIds);
+
 }
