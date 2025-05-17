@@ -6,7 +6,7 @@ import java.util.Map;
 
 @Getter @Setter @AllArgsConstructor @NoArgsConstructor @Builder
 public class HealthStatusDTO {
-    private Integer satelliteId;
+    private Integer norad_id;
     private String satelliteName;
     private Float prediction;
     private Float probability;

@@ -24,8 +24,8 @@ public class HealthStatusController {
         return healthStatusRepository.findAll().toString();
     }
 
-    @GetMapping("/getLatestHealthStatus/{satelliteId}")
-    public ResponseEntity<HealthStatusDTO> getLatestStatus(@PathVariable("satelliteId") Integer satelliteId) {
+    @GetMapping("/getLatestHealthStatus/{norad_id}")
+    public ResponseEntity<HealthStatusDTO> getLatestStatus(@PathVariable("norad_id") Integer satelliteId) {
         HealthStatusDTO dto = healthStatusService.getLatestStatusForSatellite(satelliteId);
 
         if (dto != null) {

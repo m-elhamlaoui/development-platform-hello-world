@@ -13,7 +13,7 @@ public class HealthStatusServiceImpl implements HealthStatusService {
     private final HealthStatusRepository healthStatusRepository;
 
     public HealthStatusDTO getLatestStatusForSatellite(int satelliteId) {
-        return healthStatusRepository.findLatestBySatelliteId(satelliteId)
+        return healthStatusRepository.findLatestBySatelliteNoradId(satelliteId)
                 .map(HealthStatusMapper::toDTO)
                 .orElse(null);
     }
