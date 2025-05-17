@@ -1,6 +1,5 @@
 package net.bouraoui.fetchingdata.Controllers;
 
-import lombok.AllArgsConstructor;
 import net.bouraoui.fetchingdata.Entities.Satellite;
 import net.bouraoui.fetchingdata.Entities.User;
 import net.bouraoui.fetchingdata.Services.Interfaces.SatelliteService;
@@ -28,10 +27,18 @@ public class UserController {
 
     // Create a new user
     @PostMapping("/createUser")
-    public ResponseEntity<User> createUser(@RequestBody User user) {
+    public ResponseEntity<?> createUser(@RequestBody User user) {
+        User existingUser = userService.getUserByEmail(user.getEmail());
+
+        if (existingUser != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("A user with this email already exists.");
+        }
+
         User createdUser = userService.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
+
 
     // Add satellites to an existing user
     @PostMapping("/addSatellite")
@@ -39,14 +46,14 @@ public class UserController {
         Optional<User> userOptional = userService.getUserById(request.id());
         if (userOptional.isPresent()) {
             User user = userOptional.get();
-            List<String> satelliteIds = request.satellites().stream()
-                    .map(Satellite::getId)
+            List<Integer> satelliteIds = request.satellites().stream()
+                    .map(Satellite::getNorad_id)
                     .toList();
 
             // Update user's satellite list (merge with existing if needed)
-            List<String> updatedSatelliteIds = new ArrayList<>(user.getSatelliteID());
+            List<Integer> updatedSatelliteIds = new ArrayList<>(user.getNoradIDs());
             updatedSatelliteIds.addAll(satelliteIds);
-            user.setSatelliteID(updatedSatelliteIds);
+            user.setNoradIDs(updatedSatelliteIds);
 
             userService.updateUser(user);
             return ResponseEntity.ok("Satellites successfully added to user.");
@@ -64,12 +71,12 @@ public class UserController {
     }
 
 
-    @GetMapping("/stallitesTrackeByUser/{userID}")
-    public ResponseEntity<List<Satellite>> getSatellitesByUser(@PathVariable("userID") String userID) {
-        User user = userService.getUserById(userID).orElse(null);
+    @GetMapping("/stallitesTrackeByUser/{email}")
+    public ResponseEntity<List<Satellite>> getSatellitesByUser(@PathVariable("email") String email) {
+        User user = userService.getUserByEmail(email);
         if (user != null) {
-            List<String> satelliteIds = user.getSatelliteID();
-            List<Satellite> satellites = satelliteService.findAllById(satelliteIds);
+            List<Integer> satelliteIds = user.getNoradIDs();
+            List<Satellite> satellites = satelliteService.findAllByNoradID(satelliteIds);
 
             return ResponseEntity.ok(satellites);
         } else {

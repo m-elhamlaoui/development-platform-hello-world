@@ -44,7 +44,29 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { LineChart } from "@/components/line-chart"
 import { MainNav } from "@/components/main-nav"
-import { UserNav } from "@/components/user-nav"
+import { UserNav } from "@/components/user-nav";
+import { getLatestHealthStatus } from '../../services/health/getHealth';
+import { transformToFrontendFormat } from '../../utils/transformHealthData';
+
+const [satellitePrimaryData, setSatellitePrimaryData] = useState(null);
+const satelliteId = 1;
+
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const raw = await getLatestHealthStatus(satelliteId);
+      const transformed = transformToFrontendFormat(raw);
+      setSatellitePrimaryData(transformed);
+    } catch (err) {
+      console.error('Failed to fetch satellite health:', err);
+    }
+  };
+
+  fetchData();
+  const interval = setInterval(fetchData, 3600000); // every hour
+
+  return () => clearInterval(interval);
+}, [satelliteId]);
 
 // Mock data for satellite health metrics
 const satelliteData = {
@@ -151,6 +173,33 @@ const getStatusBgColor = (status) => {
       return "bg-gray-400/10"
   }
 }
+
+// for transforming Data*
+ const transformToFrontendFormat= (apiData) => {
+  return {
+    id: apiData.id,
+    name: apiData.satelliteName,
+    launchDate: "2018-05-22T11:47:58Z", // if static
+    metrics: {
+      time_since_launch: {
+        value: apiData.timeSinceLaunch,
+        days: apiData.timeSinceLaunch,
+        status: "normal", // ← add your own logic here
+        history: [...generateMockHistory(apiData.timeSinceLaunch)],
+      },
+      battery_voltage: {
+        value: apiData.batteryVoltage,
+        unit: "V",
+        status: getStatus(apiData.batteryVoltage, { normal: [26, 30], warning: [24, 26], critical: [0, 24] }),
+        thresholds: { normal: [26, 30], warning: [24, 26], critical: [0, 24] },
+        history: [...generateMockHistory(apiData.batteryVoltage)],
+      },
+      // do the same for others
+    },
+    alerts: generateAlerts(apiData), // optional
+  }
+}
+
 
 // Helper function to get badge variant
 const getBadgeVariant = (status) => {

@@ -16,7 +16,7 @@ public class User {
     private String id;
     private String name;
     private String email;
-    private List<String> satelliteID;
+    private List<Integer> noradIDs;//norad_ids
 
 
 
@@ -46,11 +46,11 @@ public class User {
         this.email = email;
     }
 
-    public List<String> getSatelliteID() {
-        return satelliteID;
+    public List<Integer> getNoradIDs() {
+        return noradIDs;
     }
 
-    public void setSatelliteID(List<String> satelliteID) {
-        this.satelliteID = satelliteID;
+    public void setNoradIDs(List<Integer> noradIDs) {
+        this.noradIDs = noradIDs;
     }
 }

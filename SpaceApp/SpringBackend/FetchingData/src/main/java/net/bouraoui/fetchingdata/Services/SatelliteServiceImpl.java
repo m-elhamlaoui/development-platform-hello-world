@@ -26,4 +26,10 @@ public class SatelliteServiceImpl implements SatelliteService {
     public List<Satellite> findAllById(List<String> ids){
         return satelliteRepository.findAllById(ids);
     }
+
+    @Override
+    public List<Satellite> findAllByNoradID(List<Integer> noradIDs) {
+        return satelliteRepository.findSatellitesByNoradIds(noradIDs);
+    }
+
 }

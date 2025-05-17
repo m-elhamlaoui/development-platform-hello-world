@@ -14,7 +14,7 @@ public class HealthStatus {
     @Id
     private String id;
 
-    private Integer satelliteId;//norad_id
+    private Integer norad_id;//norad_id
     private String satelliteName;
     private Integer timeSinceLaunch;
     private Integer orbitalAltitude;
