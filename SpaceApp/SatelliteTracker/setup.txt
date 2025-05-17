@@ -1,0 +1,57 @@
+SatelliteTracker/
+├── health_service/                 # Microservice 1: Health Monitoring
+│   ├── migrations/                 # Database migrations
+│   │   └── __init__.py
+│   ├── models/                     # AI models and related files
+│   │   └── ai_model.h5             # Trained AI model for health prediction
+│   ├── scripts/                    # Scripts (e.g., Kafka consumers)
+│   │   └── kafka_consumer.py       # Kafka consumer for health updates
+│   ├── __init__.py
+│   ├── admin.py                    # Admin panel configuration
+│   ├── apps.py                     # App configuration
+│   ├── models.py                   # SatelliteHealth model
+│   ├── tests.py                    # Unit tests
+│   ├── urls.py                     # Service-specific URL routing
+│   ├── views.py                    # API/views for health monitoring
+│   └── settings.py                 # Service-specific settings (e.g., database)
+├── eol_service/                    # Microservice 2: End of Life Estimation
+│   ├── migrations/                 # Database migrations
+│   │   └── __init__.py
+│   ├── models/                     # AI models and related files
+│   │   └── ai_model.h5             # Trained AI model for EOL prediction
+│   ├── scripts/                    # Scripts (e.g., Kafka consumers)
+│   │   └── kafka_consumer.py       # Kafka consumer for EOL updates
+│   ├── __init__.py
+│   ├── admin.py                    # Admin panel configuration
+│   ├── apps.py                     # App configuration
+│   ├── models.py                   # SatelliteEOL model
+│   ├── tests.py                    # Unit tests
+│   ├── urls.py                     # Service-specific URL routing
+│   ├── views.py                    # API/views for EOL estimation
+│   └── settings.py                 # Service-specific settings (e.g., database)
+├── tracking_service/               # Microservice 3: Pollution & Collision Tracking
+│   ├── migrations/                 # Database migrations
+│   │   └── __init__.py
+│   ├── models/                     # AI models and related files
+│   │   └── ai_model.h5             # Trained AI model for tracking
+│   ├── scripts/                    # Scripts (e.g., Kafka consumers)
+│   │   └── kafka_consumer.py       # Kafka consumer for tracking updates
+│   ├── __init__.py
+│   ├── admin.py                    # Admin panel configuration
+│   ├── apps.py                     # App configuration
+│   ├── models.py                   # SatelliteTracking model
+│   ├── tests.py                    # Unit tests
+│   ├── urls.py                     # Service-specific URL routing
+│   ├── views.py                    # API/views for pollution/collision tracking
+│   └── settings.py                 # Service-specific settings (e.g., database)
+├── shared/                         # Shared utilities and configurations
+│   ├── __init__.py
+│   ├── kafka_utils.py              # Kafka producer/consumer utilities
+│   └── common.py                   # Optional: Shared helper functions or base models
+├── kafka_config/                   # Kafka configuration (optional for advanced setup)
+│   └── kafka_setup.sh              # Script to initialize Kafka topics
+├── static/                         # Static files (for frontend integration)
+│   └── wireframes/                 # Wireframe images (e.g., page1.png, page2.webp)
+├── docker-compose.yml              # Docker Compose for Kafka, Zookeeper, and services
+├── README.md                       # Project documentation
+└── requirements.txt                # Python dependencies (e.g., django, kafka-python)
