@@ -43,9 +43,9 @@ public class UserController {
     // Add satellites to an existing user
     @PostMapping("/addSatellite")
     public ResponseEntity<String> addSatellites(@RequestBody AddSatelliteRequest request) {
-        Optional<User> userOptional = userService.getUserById(request.id());
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
+        User user = userService.getUserByEmail(request.email());
+        if (user!=null) {
+            //User user = userOptional.get();
             List<Integer> satelliteIds = request.satellites().stream()
                     .map(Satellite::getNorad_id)
                     .toList();

@@ -14,7 +14,7 @@ public class HealthStatus {
     @Id
     private String id;
 
-    private Integer norad_id;//norad_id
+    private Integer noradId;//norad_id
     private String satelliteName;
     private Integer timeSinceLaunch;
     private Integer orbitalAltitude;
@@ -30,4 +30,6 @@ public class HealthStatus {
     private Map<String, Float> explanation;
 
     private LocalDateTime timestamp;
+
+
 }
