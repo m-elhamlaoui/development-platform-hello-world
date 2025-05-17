@@ -6,4 +6,6 @@ import java.util.List;
 
 public interface SatelliteService {
     List<Satellite> getTop30SatellitesPrioritized();
+
+    List<Satellite> findAllById(List<String> ids);
 }

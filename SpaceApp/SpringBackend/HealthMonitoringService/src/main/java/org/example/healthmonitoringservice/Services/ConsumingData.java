@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -51,7 +52,7 @@ public class ConsumingData {
                             e -> Float.parseFloat(e.getValue().toString())
                     ));
             healthStatusData.setExplanation(explanation);
-
+            healthStatusData.setTimestamp(LocalDateTime.now().withMinute(0).withSecond(0).withNano(0));
 
 
             hsRepository.save(healthStatusData);
