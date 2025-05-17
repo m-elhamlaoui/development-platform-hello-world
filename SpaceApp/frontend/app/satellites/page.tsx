@@ -21,6 +21,8 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { useAuth } from '@/lib/auth-context'
+import AddSatelliteModal from '@/components/add-satellite-modal'
 
 // Generate stars once at module level
 const initialStars = generateStars(200)
@@ -42,6 +44,7 @@ interface Satellite {
 }
 
 export default function SatellitesPage() {
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSatellite, setSelectedSatellite] = useState<Satellite | null>(null)
   const [activeSatellite, setActiveSatellite] = useState<Satellite | null>(null)
@@ -51,6 +54,7 @@ export default function SatellitesPage() {
   const [filterStatus, setFilterStatus] = useState("All")
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isAutoRotate, setIsAutoRotate] = useState(true)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
   const globeRef = useRef<EarthGlobeRef>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -180,6 +184,13 @@ export default function SatellitesPage() {
     })
   }, [])
 
+  const handleAddSatellites = useCallback((satellites: any[]) => {
+    toast({
+      title: "Satellites Added",
+      description: `Successfully added ${satellites.length} satellite(s) to track.`,
+    })
+  }, [])
+
   // Memoize the star field
   const starField = useMemo(() => (
     <div className="star-field">
@@ -297,12 +308,7 @@ export default function SatellitesPage() {
                       className="w-8 h-8 rounded-full flex items-center justify-center bg-[#1a2234] text-gray-400 hover:text-white transition-colors"
                       whileHover={{ scale: 1.1, rotate: 90 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        toast({
-                          title: "Add Satellite",
-                          description: "Feature coming soon!",
-                        })
-                      }}
+                      onClick={() => setIsAddModalOpen(true)}
                     >
                       <Plus className="h-4 w-4" />
                     </motion.button>
@@ -555,6 +561,18 @@ export default function SatellitesPage() {
               satellite={selectedSatellite}
               onClose={handleCloseModal}
               onViewDetails={() => handleViewDetails(selectedSatellite)}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* Add Satellite Modal */}
+        <AnimatePresence>
+          {isAddModalOpen && (
+            <AddSatelliteModal
+              onClose={() => setIsAddModalOpen(false)}
+              onAddSatellites={handleAddSatellites}
+              userEmail={user?.email || ''}
+              userId={user?.id || ''}
             />
           )}
         </AnimatePresence>

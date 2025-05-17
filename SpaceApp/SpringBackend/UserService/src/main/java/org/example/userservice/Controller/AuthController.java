@@ -52,6 +52,16 @@ public class AuthController {
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
 
+        try {
+            userDetailsService.createUserInFetchDataService(user);
+        } catch (Exception e) {
+            logger.error("Failed to create user in FetchData service: {}", e.getMessage());
+            // Optionally, you might want to rollback the user creation in the local database
+            // userRepository.delete(user);
+            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)
+                    .body("Failed to create user in FetchData service");
+        }
+
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String token = jwtUtil.generateToken(userDetails);
 
