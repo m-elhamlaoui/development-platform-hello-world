@@ -30,7 +30,7 @@ public class ConsumingData {
 
             Map<String, Object> features = (Map<String, Object>) receivedData.get("features");
 
-            healthStatusData.setNorad_id((Integer) features.get("satellite_id"));
+            healthStatusData.setNoradId((Integer) features.get("satellite_id"));
             healthStatusData.setSatelliteName((String) features.get("satellite_name"));
             healthStatusData.setTimeSinceLaunch((Integer) features.get("time_since_launch"));
             healthStatusData.setOrbitalAltitude((Integer) features.get("orbital_altitude"));
@@ -56,7 +56,7 @@ public class ConsumingData {
 
 
             hsRepository.save(healthStatusData);
-            System.out.println("Received TLE Data - Satellite ID: " + healthStatusData.getNorad_id() + ", Name: " + healthStatusData.getSatelliteName());
+            System.out.println("Received TLE Data - Satellite ID: " + healthStatusData.getNoradId() + ", Name: " + healthStatusData.getSatelliteName());
 
         }catch(Exception e){
             e.printStackTrace();

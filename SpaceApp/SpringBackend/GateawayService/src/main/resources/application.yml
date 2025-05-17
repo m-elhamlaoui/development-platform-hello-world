@@ -20,15 +20,15 @@ spring:
         locator:
           enabled: false
       routes:
-        - id: health-status-service
+        - id: health-monitoring-service
           uri: http://localhost:8081
           predicates:
-            - Path=/api/health/**, /api/status/**
+            - Path=/api/v1/health/**
 
         - id: fetching-data-service
           uri: http://localhost:8082
           predicates:
-            - Path=/api/data/**, /api/fetch/**
+            - Path=/api/v1/users/**
 
         - id: collision-service
           uri: http://localhost:8003
