@@ -3,9 +3,13 @@
 import { useEffect, useRef } from "react"
 import Chart from "chart.js/auto"
 
-export function LineChart({ data }) {
-  const chartRef = useRef(null)
-  const chartInstance = useRef(null)
+interface LineChartProps {
+  data: any; // Replace with proper Chart.js data type if known
+}
+
+export function LineChart({ data }: LineChartProps) {
+  const chartRef = useRef<HTMLCanvasElement>(null)
+  const chartInstance = useRef<Chart | null>(null)
 
   useEffect(() => {
     if (chartRef.current) {
@@ -15,6 +19,7 @@ export function LineChart({ data }) {
       }
 
       const ctx = chartRef.current.getContext("2d")
+      if (!ctx) return
 
       chartInstance.current = new Chart(ctx, {
         type: "line",
@@ -34,7 +39,9 @@ export function LineChart({ data }) {
             x: {
               grid: {
                 color: "rgba(255, 255, 255, 0.05)",
-                drawBorder: false,
+              },
+              border: {
+                display: false
               },
               ticks: {
                 color: "rgba(255, 255, 255, 0.5)",
@@ -46,7 +53,9 @@ export function LineChart({ data }) {
             y: {
               grid: {
                 color: "rgba(255, 255, 255, 0.05)",
-                drawBorder: false,
+              },
+              border: {
+                display: false
               },
               ticks: {
                 color: "rgba(255, 255, 255, 0.5)",
@@ -71,7 +80,7 @@ export function LineChart({ data }) {
               padding: 10,
               displayColors: false,
               callbacks: {
-                label: (context) => context.parsed.y,
+                label: (context) => context.parsed.y.toString(),
               },
             },
           },

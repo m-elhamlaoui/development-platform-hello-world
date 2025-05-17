@@ -44,6 +44,13 @@ spring:
           uri: http://localhost:8085
           predicates:
             - Path=/api/users/**, /api/auth/**
+          filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Allow-Credentials, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Allow-Methods, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Allow-Headers, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Expose-Headers, RETAIN_FIRST
+            - DedupeResponseHeader=Access-Control-Max-Age, RETAIN_FIRST
 server:
   port: 8080
 eureka:
