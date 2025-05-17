@@ -118,21 +118,19 @@ def process_tle_data_biased(data):
         time_since_launch = tle_data.get('time_since_launch')
 
         # ✅ Generate class 1 biased sample
-        sample = generate_class1_biased_sample(tle_data)
+        sample = generate_class1_biased_sample()
 
         
         synthetic_data = {
-            "time_since_launch":sample['time_since_launch'],
-            "orbital_altitude":sample['orbital_altitude'],
-            "battery_voltage":sample['battery_voltage'],
-            "solar_panel_temperature":sample['solar_panel_temperature'],
-            "solar_panel_temperature":sample['attitude_control_error'],
-             "data_transmission_rate":sample['data_transmission_rate'],
-             "data_transmission_rate":sample['thermal_control_status'],
-            "time_since_launch": time_since_launch,               # ✅ keep real one
-            "launch_date": launch_date
-        }
-
+    "time_since_launch": time_since_launch,  # use real value, not synthetic
+    "orbital_altitude": sample['orbital_altitude'],
+    "battery_voltage": sample['battery_voltage'],
+    "solar_panel_temperature": sample['solar_panel_temperature'],
+    "attitude_control_error": sample['attitude_control_error'],
+    "data_transmission_rate": sample['data_transmission_rate'],
+    "thermal_control_status": sample['thermal_control_status'],
+    "launch_date": launch_date
+}
         tle_data.update(synthetic_data)
 
         return tle_data

@@ -15,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("/api/satellites")
+@RequestMapping("/api/v1/satellites")
 @AllArgsConstructor
 public class SatelliteController {
 
