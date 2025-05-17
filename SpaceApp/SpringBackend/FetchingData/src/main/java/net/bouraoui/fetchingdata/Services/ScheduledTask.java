@@ -17,6 +17,8 @@ import java.util.Map;
 @Component
 public class ScheduledTask {
 
+    //think about observer pattern
+
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
 
@@ -33,7 +35,7 @@ public class ScheduledTask {
     @PostConstruct
     public void init() {
         cachedSatellites = satelliteService.getTop30SatellitesPrioritized();
-        System.out.println("Fetched top 30 satellites once at startup.");
+        System.out.println("Fetched top 20 satellites once at startup.");
     }
 
     @Scheduled(fixedRate = 3600000)
