@@ -16,13 +16,15 @@ interface EarthGlobeProps {
   onSatelliteClick?: (satellite: any) => void;
   activeSatellite?: any;
   zoomLevel?: number;
+  zoom?: number;
 }
 
 const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
   satellites = [],
   onSatelliteClick = () => {},
   activeSatellite = null,
-  zoomLevel = 5
+  zoomLevel = 5,
+  zoom = 1
 }, ref) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [scene, setScene] = useState<THREE.Scene | null>(null)

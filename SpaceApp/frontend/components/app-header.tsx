@@ -5,7 +5,11 @@ import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/components/ui/sidebar"
 
-export function AppHeader({ title }) {
+interface AppHeaderProps {
+  title: string;
+}
+
+export function AppHeader({ title }: AppHeaderProps) {
   const { toggleSidebar } = useSidebar()
 
   return (
@@ -27,16 +31,6 @@ export function AppHeader({ title }) {
               }`}
             >
               Satellites
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/dashboard"
-              className={`hover:text-blue-400 transition-colors ${
-                title === "Dashboard" ? "text-white" : "text-gray-400"
-              }`}
-            >
-              Dashboard
             </Link>
           </li>
           <li>

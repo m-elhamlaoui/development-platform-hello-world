@@ -2,32 +2,63 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ChromeIcon as GoogleIcon } from "lucide-react"
 import { motion } from "framer-motion"
 import { toast } from "@/components/ui/use-toast"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const { login } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Login submitted:", { email, password, rememberMe })
+    try {
+      await login(email, password)
       toast({
         title: "Login Successful",
         description: "Welcome back to Orbital Satellite Tracker!",
       })
+      router.push("/satellites")
+    } catch (err) {
+      console.error('Login error:', err)
+      if (err instanceof Error) {
+        if (err.message.includes('Network error')) {
+          toast({
+            title: "Connection Error",
+            description: "Unable to connect to the server. Please check your internet connection.",
+            variant: "destructive",
+          })
+        } else if (err.message.includes('Failed to fetch')) {
+          toast({
+            title: "Connection Error",
+            description: "Unable to connect to the server. Please try again later.",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Login Failed",
+            description: err.message,
+            variant: "destructive",
+          })
+        }
+      } else {
+        toast({
+          title: "Login Failed",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } finally {
       setIsLoading(false)
-      // In a real app, you would handle authentication here
-    }, 1500)
+    }
   }
 
   return (
@@ -61,19 +92,6 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-6 auth-form">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-full py-6 border-[#1e2a41] bg-[#131c2e] text-white hover:bg-[#1a2234]"
-            >
-              <GoogleIcon className="mr-2 h-5 w-5" />
-              Sign in with Google
-            </Button>
-
-            <div className="auth-divider">
-              <span className="auth-divider-text">or</span>
-            </div>
-
             <div className="space-y-4">
               <div>
                 <Input
@@ -100,21 +118,6 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <label className="switch">
-                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
-                  <span className="slider"></span>
-                </label>
-                <span className="ml-2 block text-sm text-gray-300">Remember me</span>
-              </div>
-              <div className="text-sm">
-                <Link href="#" className="text-[#3b82f6] hover:text-[#60a5fa]">
-                  Forgot your password?
-                </Link>
               </div>
             </div>
 
