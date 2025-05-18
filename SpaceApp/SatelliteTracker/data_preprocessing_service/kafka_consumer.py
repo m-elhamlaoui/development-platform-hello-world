@@ -37,7 +37,7 @@ def start_kafka_consumer():
                     break
 
             data = msg.value().decode('utf-8')
-            processed_data = unified_process_tle_data(data)
+            processed_data = process_tle_data_biased(data)
 
             if processed_data:
 

@@ -5,10 +5,9 @@ import org.example.healthmonitoringservice.DTOs.HealthStatusDTO;
 import org.example.healthmonitoringservice.Repositories.HealthStatusRepository;
 import org.example.healthmonitoringservice.Services.interfaces.HealthStatusService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/health/")
@@ -16,22 +15,41 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthStatusController {
 
     private final HealthStatusRepository healthStatusRepository;
-
     private final HealthStatusService healthStatusService;
 
+    // Returns all records as a string for quick debug
     @GetMapping("/getHealthStatusForSatellites")
     public String health() {
-        return healthStatusRepository.findAll().toString();
+        var all = healthStatusRepository.findAll();
+        System.out.println("📦 All Health Records:");
+        all.forEach(System.out::println); // print each document
+        return all.toString(); // fallback return
     }
 
+    // Returns the latest status for a given NORAD ID
     @GetMapping("/getLatestHealthStatus/{norad_id}")
     public ResponseEntity<HealthStatusDTO> getLatestStatus(@PathVariable("norad_id") Integer satelliteId) {
+        System.out.println("🔍 Fetching latest status for NORAD ID: " + satelliteId);
+
         HealthStatusDTO dto = healthStatusService.getLatestStatusForSatellite(satelliteId);
 
         if (dto != null) {
+            System.out.println("✅ Found HealthStatusDTO: " + dto);
             return ResponseEntity.ok(dto);
         } else {
+            System.out.println("❌ No status found for NORAD ID: " + satelliteId);
             return ResponseEntity.notFound().build();
         }
     }
+
+    @GetMapping("/getAllHealthStatus/{norad_id}")
+    public ResponseEntity<List<HealthStatusDTO>> getAllHealthStatuses(@PathVariable("norad_id") Integer satelliteId) {
+        List<HealthStatusDTO> dtos = healthStatusService.getAllStatusesForSatellite(satelliteId);
+        if (dtos.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        } else {
+            return ResponseEntity.ok(dtos);
+        }
+    }
+
 }

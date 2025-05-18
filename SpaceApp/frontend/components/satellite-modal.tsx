@@ -1,12 +1,14 @@
 "use client"
 
-import { X, Calendar, Ruler, Globe, Activity, AlertTriangle, Download, Share2 } from "lucide-react"
+import { X, Calendar, Ruler, Globe, Activity, AlertTriangle, Download, Share2, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
 
 export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
+  const router = useRouter();
   if (!satellite) return null
 
   const getStatusColor = (status) => {
@@ -45,6 +47,11 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
     })
     onClose()
   }
+
+  const handleHealthMonitoring = () => {
+    router.push(`/health-monitoring?satelliteId=${satellite.id}`);
+    onClose();
+  };
 
   // Calculate orbital period based on altitude and orbit type
   const getOrbitalPeriod = () => {
@@ -250,7 +257,7 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
           </TabsContent>
         </Tabs>
 
-        <div className="border-t border-[#1e2a41] p-4 flex justify-between">
+        <div className="flex space-x-2 p-4 border-t border-[#1e2a41]">
           <div className="flex space-x-2">
             <Button
               variant="outline"
@@ -270,12 +277,16 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
             </Button>
           </div>
 
-          <div className="flex space-x-2">
+          <div className="flex space-x-2 ml-auto">
             <Button variant="outline" onClick={onClose} className="hover:bg-[#1a2234] hover:border-[#3b82f6]">
               Close
             </Button>
-            <Button className="fancy-button" onClick={handleTrack}>
-              Track Satellite
+            <Button 
+              className="fancy-button flex items-center gap-2" 
+              onClick={handleHealthMonitoring}
+            >
+              <Heart className="h-4 w-4" />
+              Health Monitoring
             </Button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import org.example.healthmonitoringservice.Entities.HealthStatus;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface HealthStatusRepository extends MongoRepository<HealthStatus, String> {
@@ -11,5 +12,7 @@ public interface HealthStatusRepository extends MongoRepository<HealthStatus, St
     Optional<HealthStatus> findLatestBySatelliteNoradId(Integer satelliteId);
 
     HealthStatus findFirstByNoradIdOrderByTimestampDesc(Integer satelliteId);
+
+    List<HealthStatus> findAllByNoradIdOrderByTimestampDesc(Integer satelliteId);
 }
 
