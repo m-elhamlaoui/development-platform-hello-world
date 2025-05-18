@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 import { useVirtualizer } from '@tanstack/react-virtual'
 import debounce from 'lodash/debounce'
+import axios from 'axios'
 
 interface Satellite {
   id: string
@@ -26,6 +27,9 @@ interface AddSatelliteModalProps {
   userId: string
 }
 
+const satelliteCache = new Map<string, { data: any[], timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddSatelliteModalProps) => {
   const [satellites, setSatellites] = useState<Satellite[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -40,13 +44,23 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
     const fetchSatellites = async () => {
       try {
         setLoading(true)
-        const response = await fetch('http://localhost:8080/api/satellites/getSatellites')
-        if (!response.ok) {
+        const cachedData = satelliteCache.get(userEmail)
+        const now = Date.now()
+        if (cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
+          setSatellites(cachedData.data)
+          setLoading(false)
+          return
+        }
+        const response = await axios.get('http://localhost:8080/api/v1/satellites/getSatellites', {
+          timeout: 3000,
+        })
+        if (response.status !== 200) {
           throw new Error('Failed to fetch satellites')
         }
-        const data = await response.json()
+        const data = response.data
         setSatellites(data)
         setError(null)
+        satelliteCache.set(userEmail, { data, timestamp: now })
       } catch (err) {
         setError('Failed to load satellites. Please try again.')
         console.error('Error fetching satellites:', err)
@@ -56,7 +70,7 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
     }
 
     fetchSatellites()
-  }, [])
+  }, [userEmail])
 
   // Memoize filtered satellites
   const filteredSatellites = useMemo(() => {
@@ -87,13 +101,12 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/users/addSatellite', {
+      const response = await fetch('http://localhost:8080/api/v1/users/addSatellite', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          id: userId,
           email: userEmail,
           satellites: selectedSatellites
         }),
@@ -118,7 +131,7 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
       })
       console.error('Error adding satellites:', err)
     }
-  }, [selectedSatellites, onAddSatellites, onClose, userId, userEmail])
+  }, [selectedSatellites, onAddSatellites, onClose, userEmail])
 
   return (
     <motion.div
