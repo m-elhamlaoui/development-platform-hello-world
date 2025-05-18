@@ -6,6 +6,7 @@ import net.bouraoui.fetchingdata.Entities.User;
 import net.bouraoui.fetchingdata.Repositories.TLEDataRepository;
 import net.bouraoui.fetchingdata.Repositories.UserRepository;
 import net.bouraoui.fetchingdata.Services.Interfaces.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,8 +15,8 @@ import java.util.Optional;
 @Service
 @AllArgsConstructor
 public class UserServiceImpl implements UserService {
-
-    private final UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     @Override
     public List<User> getAllUsers() {
