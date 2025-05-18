@@ -117,6 +117,32 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     }
   }
 
+  // Add new function to calculate orbit points
+  const calculateOrbitPoints = (satData: any, numPoints = 100) => {
+    const points = []
+    const period = 2 * Math.PI / satData.satrec.no // Orbital period in minutes
+    const timeStep = period / numPoints
+    
+    for (let i = 0; i <= numPoints; i++) {
+      const time = new Date(Date.now() + i * timeStep * 60 * 1000)
+      const positionAndVelocity = satellite.propagate(satData.satrec, time)
+      const positionEci = positionAndVelocity.position
+      
+      if (positionEci) {
+        const scale = 2 / 6371 // Same scale as satellite positions
+        points.push(
+          new THREE.Vector3(
+            positionEci.x * scale,
+            positionEci.y * scale,
+            positionEci.z * scale
+          )
+        )
+      }
+    }
+    
+    return points
+  }
+
   // Initialize satellite data when satellites change
   useEffect(() => {
     const initializeSatellites = async () => {
@@ -319,6 +345,23 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     }
     renderer.domElement.addEventListener("click", handleClick)
 
+    // Create orbit lines for each satellite
+    const orbitLines: Record<string, THREE.Line> = {}
+    
+    Object.entries(satelliteData).forEach(([id, satData]) => {
+      const points = calculateOrbitPoints(satData)
+      const geometry = new THREE.BufferGeometry().setFromPoints(points)
+      const material = new THREE.LineBasicMaterial({
+        color: 0x3b82f6,
+        transparent: true,
+        opacity: 0.3,
+        linewidth: 1
+      })
+      const orbitLine = new THREE.Line(geometry, material)
+      scene.add(orbitLine)
+      orbitLines[id] = orbitLine
+    })
+
     // Animation loop
     const clock = new THREE.Clock()
     const animate = () => {
@@ -375,6 +418,12 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     return () => {
       window.removeEventListener("resize", handleResize)
       renderer.domElement.removeEventListener("click", handleClick)
+      // Dispose of orbit lines
+      Object.values(orbitLines).forEach(line => {
+        line.geometry.dispose()
+        line.material.dispose()
+        scene.remove(line)
+      })
       containerRef.current?.removeChild(renderer.domElement)
       renderer.dispose()
     }
@@ -387,12 +436,28 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     const satelliteIds = satellites.map((s) => s.id)
 
     Object.entries(satelliteObjects).forEach(([id, obj]) => {
-      if (!obj.mesh) return; // Skip if mesh is not loaded yet
+      if (!obj.mesh) return
       const isVisible = satelliteIds.includes(Number(id))
       const isActive = activeSatellite && Number(id) === activeSatellite.id
 
       // Update visibility
       obj.mesh.visible = isVisible
+
+      // Update orbit line visibility and highlighting
+      const orbitLine = scene.children.find(child => 
+        child instanceof THREE.Line && child.userData.satelliteId === id
+      ) as THREE.Line | undefined
+
+      if (orbitLine) {
+        orbitLine.visible = isVisible
+        if (isActive) {
+          orbitLine.material.opacity = 0.6
+          orbitLine.material.color.setHex(0x60a5fa)
+        } else {
+          orbitLine.material.opacity = 0.3
+          orbitLine.material.color.setHex(0x3b82f6)
+        }
+      }
 
       // Update highlighting for active satellite
       if (isActive) {
