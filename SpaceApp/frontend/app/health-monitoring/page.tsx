@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
-import { motion } from "framer-motion"
+import { motion, HTMLMotionProps } from "framer-motion"
 import {
   AlertTriangle,
   Battery,
@@ -54,6 +54,7 @@ import { UserNav } from "@/components/user-nav";
 import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth';
 import { cn } from "@/lib/utils"
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useSatellites } from "@/hooks/useSatellites"
 
 type MetricStatus = 'normal' | 'warning' | 'critical';
 type AlertSeverity = 'info' | 'warning' | 'critical';
@@ -666,11 +667,12 @@ const getStatus = (
   return 'normal';
 };
 
+// Add type for motion components
+type MotionDivProps = HTMLMotionProps<"div">;
+
 export default function HealthMonitoringPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [satellites, setSatellites] = useState<Satellite[]>([]);
-  const [filteredSatellites, setFilteredSatellites] = useState<Satellite[]>([]);
   const [satelliteSearch, setSatelliteSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("all");
   const [satellitePrimaryData, setSatellitePrimaryData] = useState<SatelliteData | null>(null)
@@ -682,65 +684,37 @@ export default function HealthMonitoringPage() {
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [overallHealth, setOverallHealth] = useState<number>(100)
 
-  // Get noradId from URL or use default
-  const noradId = Number(searchParams.get('noradId')) || 48272;
+  // Replace the satellites state with our custom hook
+  const { 
+    satellites, 
+    isLoading: isLoadingSatellites, 
+    error: satellitesError,
+    uniqueOwners 
+  } = useSatellites();
 
-  // Fetch satellites list (mock for now)
-  useEffect(() => {
-    const fetchSatellites = async () => {
-      try {
-        // TODO: Replace with actual API call
-        const mockSatellites: Satellite[] = [
-          {
-            _id: "68125f824cdfb96f2c352962",
-            name: "SL-1 R/B",
-            norad_id: 1,
-            Owner: "CIS",
-            launchDate: "1957-10-04",
-            launchSite: "TYMSC",
-            popular: "no"
-          },
-          {
-            _id: "68125f824cdfb96f2c352963",
-            name: "ROBUSTA 1B",
-            norad_id: 42792,
-            Owner: "France",
-            launchDate: "2017-06-23",
-            launchSite: "KIMSC",
-            popular: "no"
-          }
-        ];
-        setSatellites(mockSatellites);
-        setFilteredSatellites(mockSatellites);
-      } catch (error) {
-        console.error('Failed to fetch satellites:', error);
-      }
-    };
-
-    fetchSatellites();
-  }, []);
-
-  // Filter satellites based on search and owner filter
-  useEffect(() => {
-    const filtered = satellites.filter(sat => {
+  // Memoize filtered satellites based on search and owner filter
+  const filteredSatellites = useMemo(() => {
+    return satellites.filter(sat => {
       const matchesSearch = sat.name.toLowerCase().includes(satelliteSearch.toLowerCase()) ||
                           sat.norad_id.toString().includes(satelliteSearch);
-      const matchesOwner = ownerFilter === "all" || sat.Owner === ownerFilter;
+      const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter;
       return matchesSearch && matchesOwner;
     });
-    setFilteredSatellites(filtered);
-  }, [satelliteSearch, ownerFilter, satellites]);
+  }, [satellites, satelliteSearch, ownerFilter]);
 
-  // Handle satellite selection
-  const handleSatelliteSelect = (noradId: number) => {
-    router.push(`/health-monitoring?noradId=${noradId}`);
+  // Update parameter name to match API routes
+  const norad_id = Number(searchParams?.get('norad_id')) || 48272;
+
+  // Update the satellite selection handler
+  const handleSatelliteSelect = (selectedNoradId: number) => {
+    router.push(`/health-monitoring?norad_id=${selectedNoradId}`);
   };
 
-  // Fetch backend data
+  // Update the data fetching effect
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const raw = await getLatestHealthStatus(noradId);
+        const raw = await getLatestHealthStatus(norad_id);
         console.log('data : ', raw);
         const transformed: SatelliteData = {
           id: raw.noradId,
@@ -808,7 +782,7 @@ export default function HealthMonitoringPage() {
     const interval = setInterval(fetchData, 3600000); // every hour
 
     return () => clearInterval(interval);
-  }, [noradId]);
+  }, [norad_id]);
 
   // Calculate overall health percentage when data changes
   useEffect(() => {
@@ -876,44 +850,42 @@ export default function HealthMonitoringPage() {
               className="w-8 h-8 bg-white rounded mr-2 flex items-center justify-center"
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
+              style={{ display: 'flex' }}
             >
               <div className="w-4 h-4 bg-[#0f1520]"></div>
             </motion.div>
             <span className="font-bold text-lg gradient-text">Orbital</span>
           </Link>
           <MainNav />
-          <div className="ml-auto flex items-center space-x-4">
-            <UserNav />
-          </div>
           
-          {/* Add Satellite Selector */}
-          <div className="flex items-center space-x-4 ml-4">
+          {/* Updated Satellite Selector */}
+          <div className="flex-1 flex items-center justify-end space-x-4">
             <div className="w-[300px]">
               <Select
-                value={noradId.toString()}
+                value={norad_id.toString()}
                 onValueChange={(value) => handleSatelliteSelect(Number(value))}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#1e2a41] border-none">
                   <SelectValue placeholder="Select Satellite" />
                 </SelectTrigger>
-                <SelectContent>
-                  <div className="p-2">
+                <SelectContent className="bg-[#1e2a41] border-none">
+                  <div className="p-2 space-y-2">
                     <Input
                       placeholder="Search satellites..."
                       value={satelliteSearch}
                       onChange={(e) => setSatelliteSearch(e.target.value)}
-                      className="mb-2"
+                      className="bg-[#2a3749]"
                     />
                     <Select
                       value={ownerFilter}
                       onValueChange={setOwnerFilter}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-[#2a3749]">
                         <SelectValue placeholder="Filter by Owner" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="bg-[#2a3749]">
                         <SelectItem value="all">All Owners</SelectItem>
-                        {Array.from(new Set(satellites.map(s => s.Owner))).map(owner => (
+                        {uniqueOwners.map(owner => (
                           <SelectItem key={owner} value={owner}>
                             {owner}
                           </SelectItem>
@@ -922,20 +894,47 @@ export default function HealthMonitoringPage() {
                     </Select>
                   </div>
                   <div className="max-h-[300px] overflow-y-auto">
-                    {filteredSatellites.map((satellite) => (
-                      <SelectItem key={satellite._id} value={satellite.norad_id.toString()}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{satellite.name}</span>
-                          <span className="text-sm text-gray-500">
-                            NORAD: {satellite.norad_id} | Owner: {satellite.Owner}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {isLoadingSatellites ? (
+                      <div className="p-4 text-center">
+                        <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                        <p className="mt-2 text-sm text-gray-400">Loading satellites...</p>
+                      </div>
+                    ) : satellitesError ? (
+                      <div className="p-4 text-center text-red-400">
+                        {satellitesError}
+                        <Button
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => window.location.reload()}
+                        >
+                          Retry
+                        </Button>
+                      </div>
+                    ) : filteredSatellites.length > 0 ? (
+                      filteredSatellites.map((satellite) => (
+                        <SelectItem 
+                          key={satellite.id} 
+                          value={satellite.norad_id.toString()}
+                          className="hover:bg-[#2a3749]"
+                        >
+                          <div className="flex flex-col py-1">
+                            <span className="font-medium">{satellite.name}</span>
+                            <span className="text-sm text-gray-400">
+                              NORAD: {satellite.norad_id} | Owner: {satellite.owner}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-gray-400">
+                        No satellites found
+                      </div>
+                    )}
                   </div>
                 </SelectContent>
               </Select>
             </div>
+            <UserNav />
           </div>
         </div>
       </header>
@@ -947,6 +946,7 @@ export default function HealthMonitoringPage() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          style={{ display: 'flex' }}
         >
           <div>
             <h1 className="text-3xl font-bold fancy-title">Satellite Health Monitoring Dashboard</h1>
@@ -979,6 +979,7 @@ export default function HealthMonitoringPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
+          style={{ display: 'grid' }}
         >
           {/* Health Status Card */}
           <Card className={cn(
@@ -1082,6 +1083,7 @@ export default function HealthMonitoringPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
+          style={{ display: 'grid' }}
         >
           {filteredMetrics.length > 0 ? (
             filteredMetrics.map(([key, metric]) => (
