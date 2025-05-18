@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useVirtualizer } from '@tanstack/react-virtual'
 import debounce from 'lodash/debounce'
 import axios from 'axios'
+import Cookies from 'js-cookie'
 
 interface Satellite {
   id: string
@@ -101,19 +102,24 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
     }
 
     try {
-      const response = await fetch('http://localhost:8080/api/v1/users/addSatellite', {
-        method: 'POST',
+      const token = Cookies.get('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const response = await axios.post('http://localhost:8080/api/v1/users/addSatellite', {
+        id: userId,
+        email: userEmail,
+        satellites: selectedSatellites
+      }, {
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: userEmail,
-          satellites: selectedSatellites
-        }),
-      })
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-      if (!response.ok) {
-        throw new Error('Failed to add satellites')
+      if (response.status !== 200) {
+        throw new Error('Failed to add satellites');
       }
 
       toast({
@@ -124,14 +130,14 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
       onAddSatellites(selectedSatellites)
       onClose()
     } catch (err) {
+      console.error('Error adding satellites:', err);
       toast({
         title: "Error",
-        description: "Failed to add satellites. Please try again.",
+        description: err instanceof Error ? err.message : "Failed to add satellites. Please try again.",
         variant: "destructive",
       })
-      console.error('Error adding satellites:', err)
     }
-  }, [selectedSatellites, onAddSatellites, onClose, userEmail])
+  }, [selectedSatellites, onAddSatellites, onClose, userId, userEmail])
 
   return (
     <motion.div
@@ -222,7 +228,7 @@ const AddSatelliteModal = ({ onClose, onAddSatellites, userEmail, userId }: AddS
             </div>
           )}
 
-          <div className="mt-4 flex justify-end space-x-2">
+          <div className="flex justify-end space-x-2 mt-4">
             <Button
               variant="outline"
               onClick={onClose}

@@ -1,5 +1,7 @@
 import { API_ENDPOINTS, DEFAULT_FETCH_OPTIONS } from './api-config';
 import Cookies from 'js-cookie';
+import * as satellite from 'satellite.js';
+import * as THREE from 'three';
 
 export interface User {
   email: string;
@@ -170,3 +172,50 @@ class AuthService {
 }
 
 export const authService = new AuthService(); 
+
+const fetchTLE = async (noradId: string) => {
+  const res = await fetch(`https://celestrak.com/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`);
+  const text = await res.text();
+  // text will contain 3 lines: name, line1, line2
+  const lines = text.trim().split('\n');
+  if (lines.length >= 3) {
+    return {
+      name: lines[0],
+      tle1: lines[1],
+      tle2: lines[2],
+    };
+  }
+  throw new Error('Invalid TLE data');
+}; 
+
+function getSatellitePosition(tle1: string, tle2: string, date: Date = new Date()) {
+  const satrec = satellite.twoline2satrec(tle1, tle2);
+  const positionAndVelocity = satellite.propagate(satrec, date);
+  const positionEci = positionAndVelocity.position;
+  if (!positionEci) return null;
+  // Convert km to whatever scale you use in Three.js
+  return {
+    x: positionEci.x,
+    y: positionEci.y,
+    z: positionEci.z,
+  };
+} 
+
+const calculateOrbitPoints = (satData: any, startTime: Date = new Date()) => {
+  const points: THREE.Vector3[] = [];
+  const scale = 2 / 6371;
+  for (let i = 0; i <= 100; i++) {
+    // Spread over one orbit period (e.g., 90 minutes for LEO, or use 24h as fallback)
+    const time = new Date(startTime.getTime() + (i * 24 * 60 * 60 * 1000) / 100);
+    const positionAndVelocity = satellite.propagate(satData.satrec, time);
+    const positionEci = positionAndVelocity.position;
+    if (positionEci) {
+      points.push(new THREE.Vector3(
+        positionEci.x * scale,
+        positionEci.y * scale,
+        positionEci.z * scale
+      ));
+    }
+  }
+  return points;
+}; 

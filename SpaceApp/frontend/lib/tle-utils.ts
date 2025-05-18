@@ -19,67 +19,27 @@ interface OrbitalElements {
 
 export async function fetchTLE(noradId: string): Promise<TLEData> {
   try {
-    // Try multiple data sources
-    const dataSources = [
-      // Celestrak
-      `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`,
-      // Space-Track (backup)
-      `https://www.space-track.org/ajaxauth/class/tle_latest/NORAD_CAT_ID/${noradId}/orderby/TLE_LINE1%20ASC/format/tle`,
-      // N2YO (backup)
-      `https://www.n2yo.com/rest/v1/satellite/tle/${noradId}`
-    ];
-
-    let lastError = null;
+    const res = await fetch(`https://celestrak.com/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`);
+    const text = await res.text();
+    const lines = text.trim().split('\n');
     
-    for (const source of dataSources) {
-      try {
-        // Use a CORS proxy to bypass CORS restrictions
-        const corsProxy = 'https://corsproxy.io/?';
-        const url = `${corsProxy}${encodeURIComponent(source)}`;
-        
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const text = await res.text();
-        
-        // Handle empty response
-        if (!text.trim()) {
-          throw new Error('Empty response from server');
-        }
-
-        // Split into lines and clean them
-        const lines = text.trim().split('\n').map(line => line.trim().replace(/\r/g, ''));
-        
-        // Find the TLE lines (they should start with 1 and 2)
-        const tleLine1 = lines.find(line => line.startsWith('1 '));
-        const tleLine2 = lines.find(line => line.startsWith('2 '));
-        
-        if (!tleLine1 || !tleLine2) {
-          throw new Error('Invalid TLE format');
-        }
-
-        // Get the satellite name (it's usually the line before the TLE lines)
-        const nameIndex = lines.indexOf(tleLine1) - 1;
-        const name = nameIndex >= 0 ? lines[nameIndex] : `Satellite ${noradId}`;
-        
-        const cleanTLE = {
-          name: name,
-          line1: tleLine1,
-          line2: tleLine2
-        };
-        
-        console.log('Successfully fetched TLE data from source:', source);
-        return cleanTLE;
-      } catch (error) {
-        console.warn(`Failed to fetch from ${source}:`, error);
-        lastError = error;
-        continue; // Try next source
+    if (lines.length >= 3) {
+      // Clean up the TLE data by removing \r and extra spaces
+      const cleanTLE = {
+        name: lines[0].trim().replace(/\r/g, ''),
+        line1: lines[1].trim().replace(/\r/g, ''),
+        line2: lines[2].trim().replace(/\r/g, '')
+      };
+      
+      // Validate TLE format
+      if (!cleanTLE.line1.startsWith('1 ') || !cleanTLE.line2.startsWith('2 ')) {
+        throw new Error('Invalid TLE format');
       }
+      
+      console.log('Cleaned TLE data:', cleanTLE);
+      return cleanTLE;
     }
-
-    // If we get here, all sources failed
-    throw lastError || new Error('All TLE data sources failed');
+    throw new Error('Invalid TLE data');
   } catch (error) {
     console.error(`Error fetching TLE for NORAD ID ${noradId}:`, error);
     throw error;
@@ -322,67 +282,28 @@ export function getSatelliteRealtimeData(tle1: string, tle2: string, date: Date 
   }
 }
 
-// Add a function to validate TLE data
-function validateTLE(tle: TLEData): boolean {
-  if (!tle.line1 || !tle.line2) return false;
-  
-  // Check line lengths
-  if (tle.line1.length !== 69 || tle.line2.length !== 69) return false;
-  
-  // Check line numbers
-  if (!tle.line1.startsWith('1 ') || !tle.line2.startsWith('2 ')) return false;
-  
-  // Check checksums
-  const checksum1 = parseInt(tle.line1.slice(-1));
-  const checksum2 = parseInt(tle.line2.slice(-1));
-  
-  if (isNaN(checksum1) || isNaN(checksum2)) return false;
-  
-  return true;
-}
-
 export const fetchAllTLEs = async (satellites: { norad_id: number; name: string }[]) => {
   console.log('Fetching TLEs for satellites:', satellites);
-  
   const results = await Promise.all(
     satellites.map(async (sat) => {
-      const maxRetries = 3;
-      let retryCount = 0;
-      
-      while (retryCount < maxRetries) {
-        try {
-          const tle = await fetchTLE(sat.norad_id.toString());
-          console.log(`Fetched TLE for ${sat.name} (${sat.norad_id}):`, tle);
-          
-          // Validate TLE data before returning
-          if (validateTLE(tle)) {
-            return { ...sat, tle1: tle.line1, tle2: tle.line2 };
-          }
-          throw new Error('Invalid TLE data format');
-        } catch (e) {
-          retryCount++;
-          console.error(`Failed to fetch TLE for ${sat.name} (attempt ${retryCount}/${maxRetries}):`, e);
-          
-          if (retryCount === maxRetries) {
-            console.error(`Giving up on ${sat.name} after ${maxRetries} attempts`);
-            return null;
-          }
-          
-          // Wait before retrying (exponential backoff)
-          await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      try {
+        const tle = await fetchTLE(sat.norad_id.toString());
+        console.log(`Fetched TLE for ${sat.name} (${sat.norad_id}):`, tle);
+        
+        // Validate TLE data before returning
+        if (tle.line1 && tle.line2) {
+          return { ...sat, tle1: tle.line1, tle2: tle.line2 };
         }
+        return null;
+      } catch (e) {
+        console.error(`Failed to fetch TLE for ${sat.name}`, e);
+        return null;
       }
-      return null;
     })
   );
   
   // Filter out null results and log success/failure
   const validResults = results.filter(Boolean);
   console.log(`Successfully fetched TLEs for ${validResults.length} out of ${satellites.length} satellites`);
-  
-  if (validResults.length === 0) {
-    console.warn('No TLEs were successfully fetched. This might indicate an issue with the data sources or the NORAD IDs.');
-  }
-  
   return validResults;
 }; 
