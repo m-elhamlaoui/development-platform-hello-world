@@ -6,6 +6,7 @@ import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 import { motion } from "framer-motion"
 import { OBJLoader } from 'three-stdlib'
+import { getSatellitePosition } from "../services/satellite-service"
 
 // @ts-nocheck
 // If using TypeScript, install types: npm i --save-dev @types/three @types/three-obj-loader
@@ -35,6 +36,7 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
   const earthRef = useRef<THREE.Mesh | null>(null)
   const cloudsRef = useRef<THREE.Mesh | null>(null)
   const autoRotateRef = useRef(true)
+  const [realSatellites, setRealSatellites] = useState<Record<string, any>>({})
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -329,11 +331,47 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     window.addEventListener("resize", handleResize)
     setScene(scene)
     setSatelliteObjects(satelliteObjects)
+
+    // Fetch satellite positions
+    const fetchSatellitePositions = async () => {
+      // Updated NORAD IDs for active satellites
+      const noradIds = [
+        '25544',  // ISS
+        '33591',  // NOAA 19
+        '25338',  // COSMOS 2251
+        '37849'   // Starlink
+      ];
+      
+      for (const noradId of noradIds) {
+        try {
+          console.log(`Attempting to fetch satellite ${noradId}...`);
+          const satellite = await getSatellitePosition(noradId);
+          console.log(`Successfully fetched satellite ${noradId}:`, satellite);
+          setRealSatellites(prev => ({
+            ...prev,
+            [noradId]: satellite
+          }));
+        } catch (error) {
+          console.error(`Failed to fetch satellite ${noradId}:`, error);
+          // Remove the satellite from the state if it was previously added
+          setRealSatellites(prev => {
+            const newState = { ...prev };
+            delete newState[noradId];
+            return newState;
+          });
+        }
+      }
+    };
+
+    fetchSatellitePositions();
+    const interval = setInterval(fetchSatellitePositions, 60000); // Update every minute
+
     return () => {
       window.removeEventListener("resize", handleResize)
       renderer.domElement.removeEventListener("click", handleClick)
       containerRef.current?.removeChild(renderer.domElement)
       renderer.dispose()
+      clearInterval(interval)
     }
   }, [satellites])
 
@@ -381,6 +419,48 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
       controlsRef.current.maxDistance = Math.min(10, zoomLevel + 2)
     }
   }, [zoomLevel])
+
+  // Update satellite positions
+  useEffect(() => {
+    if (!scene || !satelliteObjects) return
+
+    Object.values(realSatellites).forEach((satellite) => {
+      if (satelliteObjects[satellite.id]) {
+        satelliteObjects[satellite.id].position.set(
+          satellite.position.x,
+          satellite.position.y,
+          satellite.position.z
+        );
+      } else {
+        // Create new satellite object using OBJ model
+        const objLoader = new OBJLoader();
+        objLoader.load('/assets/3d/satellite.obj', (object: THREE.Object3D) => {
+          object.traverse((child: any) => {
+            if (child.isMesh) {
+              child.material = new THREE.MeshPhongMaterial({
+                color: satellite.color,
+                emissive: satellite.color,
+                emissiveIntensity: 0.7,
+                shininess: 30,
+              });
+            }
+          });
+          object.scale.set(0.05, 0.05, 0.05);
+          object.position.set(
+            satellite.position.x,
+            satellite.position.y,
+            satellite.position.z
+          );
+          object.userData.satellite = satellite;
+          scene.add(object);
+          setSatelliteObjects(prev => ({
+            ...prev,
+            [satellite.id]: object
+          }));
+        });
+      }
+    });
+  }, [scene, satelliteObjects, realSatellites])
 
   return (
     <div className="relative w-full h-full">
