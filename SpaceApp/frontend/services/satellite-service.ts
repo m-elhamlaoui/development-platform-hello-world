@@ -35,6 +35,21 @@ function parseTLE(tleData: string): { line1: string; line2: string } {
   return parsed;
 }
 
+function scaleSatelliteDistance(distance: number): number {
+  // Earth radius is 2 units in our scene
+  const earthRadius = 2;
+  // Scale factor to keep satellites visible but not too far
+  const scaleFactor = 0.15;
+  // Minimum distance from Earth's surface
+  const minDistance = earthRadius + 0.2;
+  // Maximum distance from Earth's surface
+  const maxDistance = earthRadius + 0.8;
+  
+  // Scale the distance to fit within our desired range
+  const scaledDistance = Math.min(Math.max(distance * scaleFactor, minDistance), maxDistance);
+  return scaledDistance;
+}
+
 function calculateSatellitePosition(tle: { line1: string; line2: string }, noradId: string): Satellite {
   console.log(`Calculating position for satellite ${noradId}...`);
   
@@ -106,8 +121,14 @@ function calculateSatellitePosition(tle: { line1: string; line2: string }, norad
   const yECI = x2 * sinArgP + y2 * cosArgP;
   const zECI = z2;
 
-  // Scale to match our scene
-  const scale = 0.1;
+  // Calculate the distance from Earth's center
+  const distance = Math.sqrt(xECI * xECI + yECI * yECI + zECI * zECI);
+  
+  // Scale the distance to keep satellites visible
+  const scaledDistance = scaleSatelliteDistance(distance);
+  
+  // Normalize the position vector and scale it to the desired distance
+  const scale = scaledDistance / distance;
   
   return {
     id: noradId,
