@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.logging.Logger;
 
 @Component
 public class KafkaConsumerService {
@@ -20,6 +21,7 @@ public class KafkaConsumerService {
     private static final String TOPIC_HEALTH = "health";
     private static final String TOPIC_ENDOFLIFE = "endoflife";
     private static final String TOPIC_COLLISION = "collision";
+    private static final Logger logger = Logger.getLogger(KafkaConsumerService.class.getName());
 
     @Autowired
     private KafkaTemplate<String, String> kafkaTemplate;
@@ -46,6 +48,9 @@ public class KafkaConsumerService {
             }
 
             Integer satelliteId = (Integer) receivedData.get("satellite_id");
+
+
+
             String satelliteName = (String) receivedData.get("satellite_name");
             String tleLine1 = (String) receivedData.get("tle_line1");
 
@@ -76,9 +81,7 @@ public class KafkaConsumerService {
 
             double orbitalPeriod = 86400 / mean_motion;
 
-
-            double orbital_velocity_approx = 5000/orbital_altitude;
-
+            double orbital_velocity_approx = 5000 / orbital_altitude;
             double motion_launch_interaction = mean_motion * timeSinceLaunch;
 
             double inclinationNorm = inclination / 180.0;
@@ -87,12 +90,10 @@ public class KafkaConsumerService {
             altitudeNorm = Math.max(0, Math.min(1, altitudeNorm));
             meanMotionNorm = Math.max(0, Math.min(1, meanMotionNorm));
 
-
             double collisionRisk = (inclinationNorm * 0.3) +
                     (eccentricity * 0.3) +
                     ((1 - altitudeNorm) * 0.2) +
                     (meanMotionNorm * 0.2);
-
 
             int collisionWarning = (collisionRisk > 0.6) ? 1 : 0;
             System.out.println("timeSinceLaunch: " + timeSinceLaunch);
@@ -103,9 +104,11 @@ public class KafkaConsumerService {
             // Send data to respective topics
             sendToHealthTopic(satelliteId, satelliteName, timeSinceLaunch, orbital_altitude, batteryVoltage,
                     solarPanelTemperature, attitudeControlError, dataTransmissionRate, thermalControlStatus);
+
             sendToEndOfLifeTopic(satelliteId, satelliteName, orbital_altitude,
-                    orbital_velocity_approx,collisionWarning,eccentricity,mean_motion,
-                    motion_launch_interaction,raan,line1_epoch);
+                    orbital_velocity_approx, collisionWarning, eccentricity, mean_motion,
+                    motion_launch_interaction, raan, line1_epoch);
+
             sendToCollisionTopic(satelliteId, satelliteName, tleLine1, tleLine2);
 
         } catch (Exception e) {
@@ -140,18 +143,19 @@ public class KafkaConsumerService {
                                       Double orbital_velocity_approx, Integer collisionWarning, Double eccentricity,
                                       Double mean_motion, Double motion_launch_interaction, Double raan, Double line1_epoch) {
         try {
-            Map<String, Object> endOfLifeData = Map.of(
-                    "satellite_id", satelliteId,
-                    "satellite_name", satelliteName,
-                    "orbital_altitude", orbital_altitude,
-                    "orbital_velocity_approx", orbital_velocity_approx,
-                    "collision_warning", collisionWarning,
-                    "eccentricity", eccentricity,
-                    "mean_motion", mean_motion,
-                    "motion_launch_interaction", motion_launch_interaction,
-                    "raan", raan,
-                    "line1_epoch", line1_epoch
-            );
+            Map<String, Object> endOfLifeData = new java.util.HashMap<>();
+            endOfLifeData.put("satellite_id", satelliteId);
+            endOfLifeData.put("satellite_name", satelliteName);
+
+            endOfLifeData.put("orbital_altitude", orbital_altitude);
+            endOfLifeData.put("orbital_velocity_approx", orbital_velocity_approx);
+            endOfLifeData.put("collision_warning", collisionWarning);
+            endOfLifeData.put("eccentricity", eccentricity);
+            endOfLifeData.put("mean_motion", mean_motion);
+            endOfLifeData.put("motion_launch_interaction", motion_launch_interaction);
+            endOfLifeData.put("raan", raan);
+            endOfLifeData.put("line1_epoch", line1_epoch);
+
             String message = new ObjectMapper().writeValueAsString(endOfLifeData);
             kafkaTemplate.send(TOPIC_ENDOFLIFE, message);
             System.out.println("End-of-life data sent to topic: " + TOPIC_ENDOFLIFE);
@@ -159,7 +163,6 @@ public class KafkaConsumerService {
             System.err.println("Error sending to End-of-life Topic: " + e.getMessage());
         }
     }
-
 
     private void sendToCollisionTopic(Integer satelliteId, String satelliteName, String tleLine1, String tleLine2) {
         try {
@@ -176,7 +179,6 @@ public class KafkaConsumerService {
             System.err.println("Error sending to Collision Topic: " + e.getMessage());
         }
     }
-
 
     public Integer calculateTimeSinceLaunch(String tleLine1) {
         try {

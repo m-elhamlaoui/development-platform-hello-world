@@ -13,8 +13,8 @@ import java.util.List;
 @Service
 @AllArgsConstructor
 public class SatelliteServiceImpl implements SatelliteService {
-
-    private final SatelliteRepository satelliteRepository;
+    @Autowired
+    private SatelliteRepository satelliteRepository;
 
     @Override
     public List<Satellite> getTop30SatellitesPrioritized() {

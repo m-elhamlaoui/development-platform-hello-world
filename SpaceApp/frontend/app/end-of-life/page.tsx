@@ -1,40 +1,40 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Link from "next/link"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   AlertTriangle,
   Battery,
   Calendar,
   Clock,
+  Compass,
   Download,
   Filter,
-  Fuel,
   Info,
   Layers,
-  LifeBuoy,
   Orbit,
   RefreshCw,
   Rocket,
   Search,
-  Settings,
   Share2,
-  Shield,
-  Trash2,
-  TrendingDown,
-  Zap,
+  Sun,
+  Activity,
 } from "lucide-react"
+import Link from "next/link"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
-import { LineChart } from "@/components/line-chart"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
+import { v4 as uuidv4 } from 'uuid';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Dialog,
   DialogContent,
@@ -52,171 +52,270 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Input } from "@/components/ui/input"
+import { Progress } from "@/components/ui/progress"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { LineChart } from "@/components/line-chart"
+
+interface Satellite {
+  id: string;
+  name: string;
+  noradId: string;
+}
+
+interface HealthStatus {
+  satelliteId: number;
+  satelliteName: string;
+  timeSinceLaunch: number;
+  orbitalAltitude: number;
+  batteryVoltage: number;
+  solarPanelTemperature: number;
+  attitudeControlError: number;
+  dataTransmissionRate: number;
+  thermalControlStatus: number;
+  prediction: number;
+  probability: number;
+  explanation: {
+    thermal_control_status: number;
+    time_since_launch: number;
+    battery_voltage: number;
+    data_transmission_rate: number;
+    solar_panel_temperature: number;
+    attitude_control_error: number;
+    orbital_altitude: number;
+  };
+  timestamp: string; // or Date if you plan to convert it: timestamp: Date;
+}
+
+
+interface EolStatus {
+  noradId: string;
+  eccentricity: number;
+  orbitalVelocity: number;
+  raan: number;
+  collisionWarning: number;
+  orbitalAltitude: number;
+  line1Epoch: string;
+  motionLaunchInteraction: number;
+  meanMotion: number;
+  prediction: number;
+  timestamp: string;
+}
+
+interface Metrics {
+  battery: {
+    voltage: number;
+    status: string;
+    percentage: number;
+  };
+  thermal: {
+    temperature: number;
+    status: string;
+    percentage: number;
+  };
+  performance: {
+    attitudeError: number;
+    status: string;
+    percentage: number;
+  };
+}
+
+interface Forecast {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    borderColor: string;
+    backgroundColor: string;
+  }[];
+}
+
+interface Alert {
+  title: string;
+  description: string;
+  severity: string;
+  timestamp: string;
+}
+
+interface Timeline {
+  history: {
+    date: string;
+    event: string;
+    description: string;
+  }[];
+  upcoming: {
+    date: string;
+    event: string;
+    description: string;
+  }[];
+}
+
+interface DisposalOption {
+  id: string;
+  title: string;
+  description: string;
+  feasibility: string;
+  recommendation: string;
+  complianceNote: string;
+}
 
 export default function EndOfLifePage() {
   const [activeTab, setActiveTab] = useState("overview")
-  const [selectedSatellite, setSelectedSatellite] = useState("GRACE-FO 1")
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [isLoading, setIsLoading] = useState(false)
-  const [showRealTimeUpdates, setShowRealTimeUpdates] = useState(true)
-  const [fuelLevel, setFuelLevel] = useState(8)
+  const [selectedSatellite, setSelectedSatellite] = useState("")
+  const [satellites, setSatellites] = useState<Satellite[]>([])
+  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
+  const [eolStatus, setEolStatus] = useState<EolStatus | null>(null)
+  const [metrics, setMetrics] = useState<Metrics | null>(null)
+  const [forecast, setForecast] = useState<Forecast | null>(null)
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [timeline, setTimeline] = useState<Timeline | null>(null)
+  const [disposalOptions, setDisposalOptions] = useState<DisposalOption[]>([])
 
-  // Simulate real-time updates
   useEffect(() => {
-    if (!showRealTimeUpdates) return
+    fetchSatellites()
+  }, [])
 
-    const interval = setInterval(() => {
+  useEffect(() => {
+    if (selectedSatellite) {
+      fetchSatelliteData(selectedSatellite)
+    }
+  }, [selectedSatellite])
+
+  const fetchSatellites = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/eol/satellites')
+      const data = await response.json()
+      setSatellites(data)
+      if (data.length > 0) {
+        setSelectedSatellite(data[0].id)
+      }
+    } catch (error) {
+      console.error('Error fetching satellites:', error)
+    }
+  }
+
+  const fetchSatelliteData = async (satelliteId: string) => {
+    setIsLoading(true)
+    try {
+      // Fetch all data in parallel
+      const [metricsRes, forecastRes, alertsRes, timelineRes, disposalRes, healthRes, eolRes] = await Promise.all([
+        fetch(`http://localhost:8080/api/eol/metrics/${satelliteId}`),
+        fetch(`http://localhost:8080/api/eol/forecast/${satelliteId}`),
+        fetch(`http://localhost:8080/api/eol/alerts/${satelliteId}`),
+        fetch(`http://localhost:8080/api/eol/timeline/${satelliteId}`),
+        fetch(`http://localhost:8080/api/eol/disposal-options/${satelliteId}`),
+        fetch(`http://localhost:8080/api/satellites/${satelliteId}/health`),
+        fetch(`http://localhost:8080/api/satellites/${satelliteId}/eol`)
+      ])
+
+      const [metricsData, forecastData, alertsData, timelineData, disposalData, healthData, eolData] = await Promise.all([
+        metricsRes.json(),
+        forecastRes.json(),
+        alertsRes.json(),
+        timelineRes.json(),
+        disposalRes.json(),
+        healthRes.json(),
+        eolRes.json()
+      ])
+
+      setMetrics(metricsData)
+      setForecast(forecastData)
+      setAlerts(alertsData)
+      setTimeline(timelineData)
+      setDisposalOptions(disposalData)
+      setHealthStatus(healthData)
+      setEolStatus(eolData)
       setLastUpdated(new Date())
-      // Randomly decrease fuel level slightly to simulate consumption
-      setFuelLevel((prev) => Math.max(prev - Math.random() * 0.1, 0).toFixed(1))
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [showRealTimeUpdates])
+    } catch (error) {
+      console.error('Error fetching satellite data:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const handleRefresh = () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setLastUpdated(new Date())
-      setIsLoading(false)
-    }, 1000)
+    if (selectedSatellite) {
+      fetchSatelliteData(selectedSatellite)
+    }
   }
 
-  const getStatusColor = (value, thresholds) => {
-    if (value <= thresholds.critical) return "text-red-500"
-    if (value <= thresholds.warning) return "text-amber-500"
-    return "text-emerald-500"
-  }
+  const handleSatelliteChange = useCallback((value: string) => {
+    if (isLoading) return; // Prevent selection while loading
+    setSelectedSatellite(value);
+  }, [isLoading]);
 
-  const getFuelStatusColor = (value) => getStatusColor(value, { warning: 30, critical: 10 })
-  const getBatteryStatusColor = (value) => getStatusColor(100 - value, { warning: 80, critical: 75 })
+  const satelliteOptions = useMemo(() => {
+    return satellites.map((sat) => ({
+      key: sat.id || sat.noradId,
+      value: sat.id || sat.noradId,
+      label: `${sat.name} (${sat.noradId})`
+    }));
+  }, [satellites]);
 
-  const forecastData = {
-    labels: ["2023", "2024", "2025", "2026", "2027", "2028"],
+  const batteryData = {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     datasets: [
       {
-        label: "Fuel Level (%)",
-        data: [25, 20, 15, 8, 2, 0],
-        borderColor: "#ef4444",
-        backgroundColor: "rgba(239, 68, 68, 0.1)",
-      },
-      {
-        label: "Battery Health (%)",
-        data: [85, 82, 78, 75, 70, 65],
+        label: "Battery Voltage",
+        data: [12.8, 12.7, 12.6, 12.5, 12.4, 12.3, 12.2, 12.1, 12.0, 11.9, 11.8, 11.7],
         borderColor: "#3b82f6",
         backgroundColor: "rgba(59, 130, 246, 0.1)",
       },
       {
-        label: "Orbital Altitude (normalized)",
-        data: [100, 99.5, 98.8, 97.9, 96.5, 94.8],
-        borderColor: "#10b981",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-      },
+        label: "Battery Temperature",
+        data: [35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46],
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+      }
     ],
   }
 
-  const orbitDecayData = {
-    labels: ["2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030"],
+  const thermalData = {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     datasets: [
       {
-        label: "Orbital Altitude (km)",
-        data: [500, 498, 495, 490, 483, 470, 450, 420],
-        borderColor: "#10b981",
-        backgroundColor: "rgba(16, 185, 129, 0.1)",
-        borderWidth: 2,
+        label: "Solar Panel Temperature",
+        data: [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53],
+        borderColor: "#ef4444",
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
       },
       {
-        label: "Predicted (with uncertainty)",
-        data: [500, 498, 495, 490, 483, 470, 450, 420],
-        borderColor: "rgba(16, 185, 129, 0.3)",
-        backgroundColor: "rgba(16, 185, 129, 0.05)",
-        borderWidth: 1,
-        borderDash: [5, 5],
-        fill: {
-          target: "+1",
-          above: "rgba(16, 185, 129, 0.05)",
-        },
-      },
-      {
-        label: "Upper Bound",
-        data: [500, 499, 497, 494, 490, 485, 475, 460],
-        borderColor: "rgba(16, 185, 129, 0)",
-        backgroundColor: "rgba(16, 185, 129, 0)",
-      },
-      {
-        label: "Lower Bound",
-        data: [500, 497, 493, 486, 476, 455, 425, 380],
-        borderColor: "rgba(16, 185, 129, 0)",
-        backgroundColor: "rgba(16, 185, 129, 0)",
-      },
+        label: "Internal Temperature",
+        data: [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41],
+        borderColor: "#f59e0b",
+        backgroundColor: "rgba(245, 158, 11, 0.1)",
+      }
     ],
   }
 
-  const alerts = [
-    {
-      id: 1,
-      title: "Critical Fuel Level",
-      description: "Fuel level below 10%. Initiate deorbit planning.",
-      severity: "critical",
-      timestamp: "2023-12-15T09:23:11",
-    },
-    {
-      id: 2,
-      title: "Battery Degradation Warning",
-      description: "Battery degradation at 15%. Monitor closely.",
-      severity: "warning",
-      timestamp: "2023-12-14T14:45:22",
-    },
-    {
-      id: 3,
-      title: "Attitude Control Deviation",
-      description: "Attitude control error increased to 0.05°.",
-      severity: "warning",
-      timestamp: "2023-12-13T11:12:45",
-    },
-    {
-      id: 4,
-      title: "Solar Panel Efficiency Update",
-      description: "Solar panel efficiency at 90% of original output.",
-      severity: "info",
-      timestamp: "2023-12-10T08:30:15",
-    },
-  ]
+  const performanceData = {
+    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    datasets: [
+      {
+        label: "Attitude Control Error",
+        data: [0.01, 0.015, 0.02, 0.025, 0.03, 0.035, 0.04, 0.045, 0.05, 0.055, 0.06, 0.065],
+        borderColor: "#f59e0b",
+        backgroundColor: "rgba(245, 158, 11, 0.1)",
+      },
+      {
+        label: "Data Transmission Rate",
+        data: [1.5, 1.4, 1.3, 1.2, 1.1, 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4],
+        borderColor: "#8b5cf6",
+        backgroundColor: "rgba(139, 92, 246, 0.1)",
+      }
+    ],
+  }
 
-  const disposalOptions = [
-    {
-      id: "deorbit",
-      title: "Controlled Deorbit",
-      description: "Sufficient fuel for controlled re-entry. Estimated timeline: Q2 2026.",
-      feasibility: "Feasible",
-      fuelRequired: "7%",
-      recommendation: "Recommended",
-      complianceNote: "Complies with 25-year rule for LEO satellites.",
-      icon: Rocket,
-    },
-    {
-      id: "graveyard",
-      title: "Graveyard Orbit",
-      description: "Transfer to higher altitude orbit. Requires 10% fuel for transfer.",
-      feasibility: "Not Feasible",
-      fuelRequired: "10%",
-      recommendation: "Not Recommended",
-      complianceNote: "Not applicable for LEO satellites.",
-      icon: Orbit,
-    },
-    {
-      id: "passivation",
-      title: "Passivation",
-      description: "Battery discharge and fuel venting possible after deorbit maneuver.",
-      feasibility: "Feasible",
-      fuelRequired: "N/A",
-      recommendation: "Required",
-      complianceNote: "Required by international guidelines.",
-      icon: Battery,
-    },
-  ]
+  
 
   const timelineEvents = [
     {
@@ -226,8 +325,8 @@ export default function EndOfLifePage() {
     },
     {
       date: "2023-12-15",
-      event: "Critical Fuel Alert",
-      description: "Fuel level dropped below 10% threshold.",
+      event: "Critical Battery Alert",
+      description: "Battery voltage dropped below threshold.",
     },
     {
       date: "2024-06-01",
@@ -241,8 +340,8 @@ export default function EndOfLifePage() {
     },
     {
       date: "2026-03-15",
-      event: "Fuel Depletion",
-      description: "Projected date for fuel depletion.",
+      event: "System Passivation",
+      description: "Projected date for system passivation.",
     },
     {
       date: "2026-04-01",
@@ -262,17 +361,19 @@ export default function EndOfLifePage() {
   ]
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-[#0a101c] to-[#0f1520] text-white">
+    <div className="flex min-h-screen flex-col bg-[#0f1520] text-white">
       {/* Header */}
-      <header className="border-b border-[#1e2a41] bg-[#0a101c]/90 backdrop-blur-md sticky top-0 z-50">
+      <header className="app-header border-b border-[#1e2a41]">
         <div className="flex h-16 items-center px-4">
           <Link href="/" className="flex items-center mr-8">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mr-2 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <div className="w-4 h-4 bg-white rounded-full"></div>
-            </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-white to-blue-100 bg-clip-text text-transparent">
-              Satellite Tracker
-            </span>
+            <motion.div
+              className="w-8 h-8 bg-white rounded mr-2 flex items-center justify-center"
+              whileHover={{ rotate: 180 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="w-4 h-4 bg-[#0f1520]"></div>
+            </motion.div>
+            <span className="font-bold text-lg gradient-text">Orbital</span>
           </Link>
           <MainNav />
           <div className="ml-auto flex items-center space-x-4">
@@ -281,108 +382,41 @@ export default function EndOfLifePage() {
         </div>
       </header>
 
-      {/* Breadcrumb */}
-      <div className="border-b border-[#1e2a41] bg-[#0a101c]/60 backdrop-blur-sm">
-        <div className="px-4 py-2 text-sm flex items-center justify-between">
+      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <Link href="/fleet" className="text-blue-400 hover:text-blue-300 transition-colors">
-              Fleet
-            </Link>
-            <span className="mx-2 text-gray-500">/</span>
-            <span>End-of-Life Monitoring</span>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+              End-of-Life Monitoring
+            </h1>
+            <p className="text-gray-400">Monitor and manage satellite end-of-life status</p>
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-400">
-            <Clock className="h-4 w-4" />
-            <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full hover:bg-blue-500/20 hover:text-blue-300 transition-all"
-              onClick={handleRefresh}
+          <div className="flex items-center space-x-4">
+            <Select 
+              value={selectedSatellite} 
+              onValueChange={handleSatelliteChange}
               disabled={isLoading}
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-              <span className="sr-only">Refresh</span>
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-8 rounded-full px-3 transition-all ${
-                      showRealTimeUpdates
-                        ? "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
-                        : "text-gray-400 hover:bg-gray-500/20"
-                    }`}
-                    onClick={() => setShowRealTimeUpdates(!showRealTimeUpdates)}
-                  >
-                    <Zap className="h-4 w-4 mr-1" />
-                    {showRealTimeUpdates ? "Real-time On" : "Real-time Off"}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Toggle real-time updates</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-        </div>
-      </div>
-
-      {/* Main content */}
-      <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-              Satellite End-of-Life Monitoring
-            </h1>
-            <p className="text-gray-400 mt-1">
-              Track satellite health, remaining operational life, and disposal options to plan safe and compliant
-              end-of-life operations.
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Select value={selectedSatellite} onValueChange={setSelectedSatellite}>
-              <SelectTrigger className="w-[180px] bg-[#1a2234]/80 border-[#2d3a51] rounded-lg backdrop-blur-sm">
+              <SelectTrigger className="w-[200px] bg-[#1a2234]/80 border-[#2d3a51]">
                 <SelectValue placeholder="Select satellite" />
               </SelectTrigger>
               <SelectContent className="bg-[#1a2234] border-[#2d3a51]">
-                <SelectItem value="GRACE-FO 1">GRACE-FO 1</SelectItem>
-                <SelectItem value="GRACE-FO 2">GRACE-FO 2</SelectItem>
-                <SelectItem value="Landsat 9">Landsat 9</SelectItem>
-                <SelectItem value="JPSS-1">JPSS-1</SelectItem>
+                {satelliteOptions.map((option) => (
+                  <SelectItem key={option.key} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
                   size="icon"
                   className="h-9 w-9 rounded-lg bg-[#1a2234]/80 border-[#2d3a51] hover:bg-[#2d3a51]/80 hover:border-blue-500/50 transition-all backdrop-blur-sm"
+              onClick={handleRefresh}
+              disabled={isLoading}
                 >
-                  <Filter className="h-4 w-4" />
-                  <span className="sr-only">Filter</span>
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              <span className="sr-only">Refresh</span>
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-[#1a2234] border-[#2d3a51]">
-                <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-[#2d3a51]" />
-                <DropdownMenuItem>
-                  <span>Show Critical Only</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <span>Show Warnings Only</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <span>Show All Metrics</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-[#2d3a51]" />
-                <DropdownMenuItem>
-                  <span>Reset Filters</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all rounded-lg">
               <Share2 className="h-4 w-4 mr-2" />
               Share Report
@@ -390,92 +424,197 @@ export default function EndOfLifePage() {
           </div>
         </div>
 
-        {/* Satellite Info */}
-        <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          <>
+            {/* Prediction Score Card */}
+            {healthStatus && (
+              <Card className="mb-6 bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+            <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                      <Activity className="h-5 w-5 mr-2 text-blue-400" />
+                      Prediction Score
+                    </div>
+                    <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
+                      Warning
+                    </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <div className="text-4xl font-bold mb-2">{healthStatus.prediction.toFixed(2)}</div>
+                      <Progress value={healthStatus.prediction * 100} max={100} className="h-2 mb-4 bg-amber-950/30" />
+                      <div className="text-sm text-gray-400">{healthStatus.explanation.attitude_control_error}</div>
+                </div>
+                    <div>
+                      <div className="text-4xl font-bold mb-2">{healthStatus.probability.toFixed(2)}</div>
+                      <Progress value={healthStatus.probability * 100} max={100} className="h-2 mb-4 bg-blue-950/30" />
+                      <div className="text-sm text-gray-400">Probability of end-of-life event</div>
+                </div>
+                </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Satellite Info Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Battery Status Card */}
+              {metrics?.battery && (
+                <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                  <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Battery className="h-5 w-5 mr-2 text-blue-400" />
+                        Battery Status
+                </div>
+                      <Badge className={`bg-gradient-to-r ${
+                        metrics.battery.status === 'critical' 
+                          ? 'from-red-600 to-red-500' 
+                          : metrics.battery.status === 'warning'
+                          ? 'from-amber-600 to-amber-500'
+                          : 'from-emerald-600 to-emerald-500'
+                      } border-0 text-white font-medium`}>
+                        {metrics.battery.status}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="text-4xl font-bold mb-2">{metrics.battery.voltage.toFixed(1)}V</div>
+                    <Progress value={metrics.battery.percentage} max={100} className="h-2 mb-4 bg-red-950/30" />
+                    <div className="text-sm text-gray-400">Battery voltage status</div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Thermal Status Card */}
+              {metrics?.thermal && (
+                <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                  <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Sun className="h-5 w-5 mr-2 text-amber-400" />
+                        Thermal Status
+              </div>
+                      <Badge className={`bg-gradient-to-r ${
+                        metrics.thermal.status === 'critical' 
+                          ? 'from-red-600 to-red-500' 
+                          : metrics.thermal.status === 'warning'
+                          ? 'from-amber-600 to-amber-500'
+                          : 'from-emerald-600 to-emerald-500'
+                      } border-0 text-white font-medium`}>
+                        {metrics.thermal.status}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="text-4xl font-bold mb-2">{metrics.thermal.temperature.toFixed(1)}°C</div>
+                    <Progress value={metrics.thermal.percentage} max={100} className="h-2 mb-4 bg-amber-950/30" />
+                    <div className="text-sm text-gray-400">Solar panel temperature</div>
+            </CardContent>
+          </Card>
+              )}
+
+              {/* Performance Metrics Card */}
+              {metrics?.performance && (
+                <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                  <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Compass className="h-5 w-5 mr-2 text-emerald-400" />
+                        Performance Metrics
+                      </div>
+                      <Badge className={`bg-gradient-to-r ${
+                        metrics.performance.status === 'critical' 
+                          ? 'from-red-600 to-red-500' 
+                          : metrics.performance.status === 'warning'
+                          ? 'from-amber-600 to-amber-500'
+                          : 'from-emerald-600 to-emerald-500'
+                      } border-0 text-white font-medium`}>
+                        {metrics.performance.status}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="text-4xl font-bold mb-2">{metrics.performance.attitudeError.toFixed(2)}°</div>
+                    <Progress value={metrics.performance.percentage} max={100} className="h-2 mb-4 bg-emerald-950/30" />
+                    <div className="text-sm text-gray-400">Attitude control error</div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Satellite Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {/* Basic Info Card */}
           <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
             <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
               <CardTitle className="text-lg flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-blue-400" />
-                Satellite Information
+                    <Info className="h-5 w-5 mr-2 text-blue-400" />
+                    Basic Information
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Name:</span>
-                  <span className="font-medium">{selectedSatellite}</span>
+                      <span className="text-gray-400">Satellite ID:</span>
+                      <span className="font-medium">{eolStatus?.noradId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Launch Date:</span>
-                  <span className="font-medium">May 22, 2018</span>
+                      <span className="text-gray-400">Satellite Name:</span>
+                      <span className="font-medium">{healthStatus?.satelliteName}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Mission Type:</span>
-                  <span className="font-medium">Earth Observation</span>
+                      <span className="text-gray-400">Time Since Launch:</span>
+                      <span className="font-medium">{healthStatus?.timeSinceLaunch}</span>
                 </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Orbital Status Card */}
+              <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                  <CardTitle className="text-lg flex items-center">
+                    <Orbit className="h-5 w-5 mr-2 text-blue-400" />
+                    Orbital Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Orbit:</span>
-                  <span className="font-medium">Low Earth Orbit (LEO)</span>
+                      <span className="text-gray-400">Orbital Altitude:</span>
+                      <span className="font-medium">{eolStatus?.orbitalAltitude.toFixed(2)} km</span>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+              {/* System Status Card */}
           <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
             <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
               <CardTitle className="text-lg flex items-center">
-                <Clock className="h-5 w-5 mr-2 text-blue-400" />
-                EOL Timeline
+                    <Layers className="h-5 w-5 mr-2 text-blue-400" />
+                    System Status
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4">
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Current Age:</span>
-                  <span className="font-medium">5 years, 7 months</span>
+                      <span className="text-gray-400">Thermal Control:</span>
+                      <span className="font-medium">{healthStatus?.thermalControlStatus}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Design Lifetime:</span>
-                  <span className="font-medium">5 years</span>
+                      <span className="text-gray-400">Solar Panel Temp:</span>
+                      <span className="font-medium">{metrics?.thermal?.temperature.toFixed(1)}°C</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Extended Mission:</span>
-                  <span className="font-medium">Approved until 2026</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Estimated EOL:</span>
-                  <span className="font-medium text-amber-400">Q2 2026 (±3 months)</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
-            <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-              <CardTitle className="text-lg flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2 text-blue-400" />
-                EOL Status Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-400">Overall Health:</span>
-                  <Badge className="bg-gradient-to-r from-amber-500 to-amber-400 border-0 text-black font-medium">
-                    Caution
-                  </Badge>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Critical Alerts:</span>
-                  <span className="font-medium text-red-400">1</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Warnings:</span>
-                  <span className="font-medium text-amber-400">2</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Recommended Action:</span>
-                  <span className="font-medium text-blue-400">Plan Deorbit</span>
+                      <span className="text-gray-400">Last Update:</span>
+                      <span className="font-medium">{lastUpdated.toLocaleString()}</span>
                 </div>
               </div>
             </CardContent>
@@ -483,12 +622,12 @@ export default function EndOfLifePage() {
         </div>
 
         {/* Critical Alert */}
-        <Alert className="mb-6 bg-gradient-to-r from-red-900/30 to-red-900/10 border-red-800/50 text-red-300 rounded-xl shadow-lg">
+            <Alert className="mb-6 bg-red-950/20 border-red-500/20 text-red-400">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Critical: Fuel Level Below 10%</AlertTitle>
+              <AlertTitle>Critical: Battery Voltage Below Threshold</AlertTitle>
           <AlertDescription>
-            Satellite has reached critical fuel level threshold. Initiate deorbit planning procedures according to
-            protocol EOL-5A.
+                Satellite battery voltage has dropped below critical threshold. Monitor closely and prepare for potential
+                deorbit procedures.
           </AlertDescription>
         </Alert>
 
@@ -499,7 +638,7 @@ export default function EndOfLifePage() {
               value="metrics"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md transition-all"
             >
-              EOL Metrics
+                  Health Metrics
             </TabsTrigger>
             <TabsTrigger
               value="disposal"
@@ -521,432 +660,36 @@ export default function EndOfLifePage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* EOL Metrics Tab */}
+              {/* Health Metrics Tab */}
           <TabsContent value="metrics" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {/* Fuel Card */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-red-500/30 cursor-pointer group">
-                    <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                      <CardTitle className="text-lg flex items-center justify-between">
-                        <div className="flex items-center">
-                          <Fuel className="h-5 w-5 mr-2 text-red-400 group-hover:text-red-300 transition-colors" />
-                          Remaining Fuel
-                        </div>
-                        <Badge
-                          className={`${
-                            Number.parseFloat(fuelLevel) <= 10
-                              ? "bg-gradient-to-r from-red-600 to-red-500"
-                              : Number.parseFloat(fuelLevel) <= 30
-                                ? "bg-gradient-to-r from-amber-600 to-amber-500"
-                                : "bg-gradient-to-r from-emerald-600 to-emerald-500"
-                          } border-0 text-white font-medium`}
-                        >
-                          {Number.parseFloat(fuelLevel) <= 10
-                            ? "Critical"
-                            : Number.parseFloat(fuelLevel) <= 30
-                              ? "Warning"
-                              : "Normal"}
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="text-4xl font-bold mb-2 flex items-center">
-                        <span className={`${getFuelStatusColor(fuelLevel)} group-hover:scale-105 transition-transform`}>
-                          {fuelLevel}%
-                        </span>
-                        <span className="text-sm font-normal text-gray-400 ml-2">of original capacity</span>
-                      </div>
-                      <Progress
-                        value={fuelLevel}
-                        max={100}
-                        className={`h-2 mb-4 ${
-                          Number.parseFloat(fuelLevel) <= 10
-                            ? "bg-red-950/30"
-                            : Number.parseFloat(fuelLevel) <= 30
-                              ? "bg-amber-950/30"
-                              : "bg-emerald-950/30"
-                        }`}
-                        style={{
-                          backgroundImage:
-                            Number.parseFloat(fuelLevel) <= 10
-                              ? "linear-gradient(to right, #7f1d1d20, #7f1d1d10)"
-                              : Number.parseFloat(fuelLevel) <= 30
-                                ? "linear-gradient(to right, #78350f20, #78350f10)"
-                                : "linear-gradient(to right, #064e3b20, #064e3b10)",
-                        }}
-                      />
-                      <div className="text-sm text-gray-400 mb-2">Estimated depletion: Q2 2026</div>
-                      <div className="h-20 mt-4">
-                        <LineChart
-                          data={{
-                            labels: ["2023", "2024", "2025", "2026"],
-                            datasets: [
-                              {
-                                label: "Fuel Level",
-                                data: [25, 20, 15, 0],
-                                borderColor: "#ef4444",
-                                backgroundColor: "rgba(239, 68, 68, 0.1)",
-                              },
-                            ],
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </DialogTrigger>
-                <DialogContent className="bg-[#1a2234] border-[#2d3a51] text-white max-w-3xl rounded-xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl flex items-center">
-                      <Fuel className="h-5 w-5 mr-2 text-red-400" />
-                      Remaining Fuel Analysis
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                      Detailed analysis of fuel consumption and projections for {selectedSatellite}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Current Level</div>
-                        <div className={`text-2xl font-bold ${getFuelStatusColor(fuelLevel)}`}>{fuelLevel}%</div>
-                      </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Consumption Rate</div>
-                        <div className="text-2xl font-bold">0.5% / month</div>
-                      </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Depletion Date</div>
-                        <div className="text-2xl font-bold">Apr 2026</div>
-                      </div>
-                    </div>
-
-                    <div className="h-64 bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <div className="text-sm text-gray-400 mb-2">Fuel Consumption Projection</div>
-                      <LineChart
-                        data={{
-                          labels: ["2023", "2024", "2025", "2026", "2027"],
-                          datasets: [
-                            {
-                              label: "Actual Fuel Level",
-                              data: [25, 20, 15, 8, null],
-                              borderColor: "#ef4444",
-                              backgroundColor: "rgba(239, 68, 68, 0.1)",
-                              borderWidth: 2,
-                            },
-                            {
-                              label: "Projected Fuel Level",
-                              data: [null, null, null, 8, 0],
-                              borderColor: "#ef4444",
-                              backgroundColor: "rgba(239, 68, 68, 0.1)",
-                              borderWidth: 2,
-                              borderDash: [5, 5],
-                            },
-                            {
-                              label: "Upper Bound",
-                              data: [25, 21, 17, 10, 3],
-                              borderColor: "rgba(239, 68, 68, 0.3)",
-                              backgroundColor: "rgba(0, 0, 0, 0)",
-                              borderWidth: 1,
-                              borderDash: [2, 2],
-                            },
-                            {
-                              label: "Lower Bound",
-                              data: [25, 19, 13, 6, 0],
-                              borderColor: "rgba(239, 68, 68, 0.3)",
-                              backgroundColor: "rgba(0, 0, 0, 0)",
-                              borderWidth: 1,
-                              borderDash: [2, 2],
-                            },
-                          ],
-                        }}
-                      />
-                    </div>
-
-                    <div className="bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <h4 className="font-medium mb-2">Fuel Consumption Analysis</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        The satellite is consuming fuel at a rate of approximately 0.5% per month, primarily for orbit
-                        maintenance and attitude control. Based on current consumption patterns, the fuel will be
-                        depleted by April 2026 (±3 months).
-                      </p>
-                      <h4 className="font-medium mb-2 mt-4">Deorbit Fuel Requirements</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        A controlled deorbit maneuver requires approximately 7% fuel. With current levels at {fuelLevel}
-                        %, there is sufficient fuel for a controlled deorbit if planned within the next 2-3 months.
-                      </p>
-                      <div className="flex items-center mt-4 text-amber-400 text-sm">
-                        <AlertTriangle className="h-4 w-4 mr-1" />
-                        <span>
-                          Recommendation: Initiate deorbit planning immediately to ensure controlled re-entry.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="flex justify-between items-center">
-                    <div className="text-sm text-gray-400">Last updated: {lastUpdated.toLocaleString()}</div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        className="bg-[#0f1520] border-[#2d3a51] hover:bg-[#1a2234] hover:border-[#3d4a61] transition-colors"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Data
-                      </Button>
-                      <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all">
-                        View Deorbit Plan
-                      </Button>
-                    </div>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
               {/* Battery Card */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30 cursor-pointer group">
+                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
                     <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
                       <CardTitle className="text-lg flex items-center justify-between">
                         <div className="flex items-center">
-                          <Battery className="h-5 w-5 mr-2 text-blue-400 group-hover:text-blue-300 transition-colors" />
-                          Battery Degradation
-                        </div>
-                        <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
-                          Warning
-                        </Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <div className="text-4xl font-bold mb-2 flex items-center">
-                        <span className={`${getBatteryStatusColor(15)} group-hover:scale-105 transition-transform`}>
-                          15%
-                        </span>
-                        <span className="text-sm font-normal text-gray-400 ml-2">degraded</span>
-                      </div>
-                      <Progress
-                        value={85}
-                        max={100}
-                        className="h-2 mb-4 bg-blue-950/30"
-                        style={{
-                          backgroundImage: "linear-gradient(to right, #1e3a8a20, #1e3a8a10)",
-                        }}
-                      />
-                      <div className="text-sm text-gray-400 mb-2">Current capacity: 85% of original</div>
-                      <div className="h-20 mt-4">
-                        <LineChart
-                          data={{
-                            labels: ["2020", "2021", "2022", "2023"],
-                            datasets: [
-                              {
-                                label: "Battery Health",
-                                data: [100, 95, 90, 85],
-                                borderColor: "#3b82f6",
-                                backgroundColor: "rgba(59, 130, 246, 0.1)",
-                              },
-                            ],
-                          }}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </DialogTrigger>
-                <DialogContent className="bg-[#1a2234] border-[#2d3a51] text-white max-w-3xl rounded-xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl flex items-center">
                       <Battery className="h-5 w-5 mr-2 text-blue-400" />
-                      Battery Degradation Analysis
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                      Detailed analysis of battery health and degradation for {selectedSatellite}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Current Capacity</div>
-                        <div className="text-2xl font-bold">85%</div>
+                          Battery Status
                       </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Degradation Rate</div>
-                        <div className="text-2xl font-bold">3% / year</div>
-                      </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Critical Threshold</div>
-                        <div className="text-2xl font-bold">75%</div>
-                      </div>
-                    </div>
-
-                    <div className="h-64 bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <div className="text-sm text-gray-400 mb-2">Battery Health Projection</div>
-                      <LineChart
-                        data={{
-                          labels: ["2020", "2021", "2022", "2023", "2024", "2025", "2026"],
-                          datasets: [
-                            {
-                              label: "Actual Battery Health",
-                              data: [100, 95, 90, 85, null, null, null],
-                              borderColor: "#3b82f6",
-                              backgroundColor: "rgba(59, 130, 246, 0.1)",
-                              borderWidth: 2,
-                            },
-                            {
-                              label: "Projected Battery Health",
-                              data: [null, null, null, 85, 82, 79, 76],
-                              borderColor: "#3b82f6",
-                              backgroundColor: "rgba(59, 130, 246, 0.1)",
-                              borderWidth: 2,
-                              borderDash: [5, 5],
-                            },
-                          ],
-                        }}
-                      />
-                    </div>
-
-                    <div className="bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <h4 className="font-medium mb-2">Battery Health Analysis</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        The satellite's battery has degraded to 85% of its original capacity over 5 years of operation.
-                        This degradation rate of approximately 3% per year is within expected parameters for this
-                        mission type.
-                      </p>
-                      <h4 className="font-medium mb-2 mt-4">Impact on Operations</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        Current battery capacity is sufficient for normal operations. The battery is projected to reach
-                        the critical threshold of 75% by late 2026, which coincides with the planned end-of-life.
-                      </p>
-                      <div className="flex items-center mt-4 text-amber-400 text-sm">
-                        <Info className="h-4 w-4 mr-1" />
-                        <span>Note: Battery degradation is not currently a limiting factor for mission extension.</span>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="flex justify-between items-center">
-                    <div className="text-sm text-gray-400">Last updated: {lastUpdated.toLocaleString()}</div>
-                    <Button
-                      variant="outline"
-                      className="bg-[#0f1520] border-[#2d3a51] hover:bg-[#1a2234] hover:border-[#3d4a61] transition-colors"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Data
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              {/* Orbital Decay Card */}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-emerald-500/30 cursor-pointer group">
-                    <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                      <CardTitle className="text-lg flex items-center justify-between">
-                        <div className="flex items-center">
-                          <TrendingDown className="h-5 w-5 mr-2 text-emerald-400 group-hover:text-emerald-300 transition-colors" />
-                          Orbital Decay
-                        </div>
-                        <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                          Normal
+                        <Badge className="bg-gradient-to-r from-red-600 to-red-500 border-0 text-white font-medium">
+                          Critical
                         </Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
-                      <div className="text-4xl font-bold mb-2 flex items-center">
-                        <span className="text-emerald-500 group-hover:scale-105 transition-transform">0.5</span>
-                        <span className="text-sm font-normal text-gray-400 ml-2">km/year</span>
-                      </div>
-                      <div className="text-sm text-gray-400 mb-2">Current altitude: 490 km</div>
-                      <div className="text-sm text-gray-400 mb-2">Estimated re-entry: 2030 (without intervention)</div>
-                      <div className="h-20 mt-4">
-                        <LineChart
-                          data={{
-                            labels: ["2020", "2021", "2022", "2023"],
-                            datasets: [
-                              {
-                                label: "Orbital Altitude",
-                                data: [500, 499, 497.5, 496],
-                                borderColor: "#10b981",
-                                backgroundColor: "rgba(16, 185, 129, 0.1)",
-                              },
-                            ],
-                          }}
-                        />
-                      </div>
+                      <div className="text-4xl font-bold mb-2">{metrics?.battery.voltage.toFixed(1)}V</div>
+                      <Progress value={metrics?.battery.percentage} max={100} className="h-2 mb-4 bg-red-950/30" />
+                      <div className="text-sm text-gray-400">Battery voltage status</div>
                     </CardContent>
                   </Card>
-                </DialogTrigger>
-                <DialogContent className="bg-[#1a2234] border-[#2d3a51] text-white max-w-3xl rounded-xl">
-                  <DialogHeader>
-                    <DialogTitle className="text-xl flex items-center">
-                      <TrendingDown className="h-5 w-5 mr-2 text-emerald-400" />
-                      Orbital Decay Analysis
-                    </DialogTitle>
-                    <DialogDescription className="text-gray-400">
-                      Detailed analysis of orbital decay and re-entry projections for {selectedSatellite}
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Current Altitude</div>
-                        <div className="text-2xl font-bold">490 km</div>
-                      </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Decay Rate</div>
-                        <div className="text-2xl font-bold">0.5 km/year</div>
-                      </div>
-                      <div className="bg-[#0f1520] p-3 rounded-lg border border-[#2d3a51]/50">
-                        <div className="text-sm text-gray-400">Natural Re-entry</div>
-                        <div className="text-2xl font-bold">~2030</div>
-                      </div>
-                    </div>
 
-                    <div className="h-64 bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <div className="text-sm text-gray-400 mb-2">Orbital Altitude Projection</div>
-                      <LineChart data={orbitDecayData} />
-                    </div>
-
-                    <div className="bg-[#0f1520] p-4 rounded-lg border border-[#2d3a51]/50">
-                      <h4 className="font-medium mb-2">Orbital Decay Analysis</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        The satellite is experiencing a natural orbital decay rate of approximately 0.5 km/year due to
-                        atmospheric drag. This rate is expected to increase as the satellite descends into denser
-                        atmospheric layers.
-                      </p>
-                      <h4 className="font-medium mb-2 mt-4">Re-entry Projection</h4>
-                      <p className="text-sm text-gray-400 mb-2">
-                        Without intervention, natural orbital decay would lead to atmospheric re-entry around 2030.
-                        However, a controlled deorbit is recommended to ensure safe re-entry over unpopulated areas.
-                      </p>
-                      <div className="flex items-center mt-4 text-emerald-400 text-sm">
-                        <Info className="h-4 w-4 mr-1" />
-                        <span>
-                          Note: Current orbital decay rate complies with the 25-year rule for post-mission disposal.
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter className="flex justify-between items-center">
-                    <div className="text-sm text-gray-400">Last updated: {lastUpdated.toLocaleString()}</div>
-                    <Button
-                      variant="outline"
-                      className="bg-[#0f1520] border-[#2d3a51] hover:bg-[#1a2234] hover:border-[#3d4a61] transition-colors"
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Data
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Component Wear Card */}
+                  {/* Solar Panel Card */}
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
                 <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
                   <CardTitle className="text-lg flex items-center justify-between">
                     <div className="flex items-center">
-                      <Settings className="h-5 w-5 mr-2 text-blue-400" />
-                      Component Wear
+                          <Sun className="h-5 w-5 mr-2 text-amber-400" />
+                          Thermal Status
                     </div>
                     <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
                       Warning
@@ -954,173 +697,29 @@ export default function EndOfLifePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="space-y-3">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Attitude Control Error</span>
-                        <span className="text-amber-400">0.05°</span>
-                      </div>
-                      <Progress
-                        value={50}
-                        max={100}
-                        className="h-1 bg-amber-950/30"
-                        style={{
-                          backgroundImage: "linear-gradient(to right, #78350f20, #78350f10)",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Solar Panel Efficiency</span>
-                        <span className="text-emerald-400">90%</span>
-                      </div>
-                      <Progress
-                        value={90}
-                        max={100}
-                        className="h-1 bg-emerald-950/30"
-                        style={{
-                          backgroundImage: "linear-gradient(to right, #064e3b20, #064e3b10)",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Reaction Wheel Performance</span>
-                        <span className="text-emerald-400">92%</span>
-                      </div>
-                      <Progress
-                        value={92}
-                        max={100}
-                        className="h-1 bg-emerald-950/30"
-                        style={{
-                          backgroundImage: "linear-gradient(to right, #064e3b20, #064e3b10)",
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Thermal Control System</span>
-                        <span className="text-emerald-400">95%</span>
-                      </div>
-                      <Progress
-                        value={95}
-                        max={100}
-                        className="h-1 bg-emerald-950/30"
-                        style={{
-                          backgroundImage: "linear-gradient(to right, #064e3b20, #064e3b10)",
-                        }}
-                      />
-                    </div>
-                  </div>
+                      <div className="text-4xl font-bold mb-2">{metrics?.thermal?.temperature.toFixed(1)}°C</div>
+                      <Progress value={metrics?.thermal?.percentage} max={100} className="h-2 mb-4 bg-amber-950/30" />
+                      <div className="text-sm text-gray-400">Solar panel temperature</div>
                 </CardContent>
               </Card>
 
-              {/* Operational Status Card */}
+                  {/* Performance Card */}
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
                 <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
                   <CardTitle className="text-lg flex items-center justify-between">
                     <div className="flex items-center">
-                      <Shield className="h-5 w-5 mr-2 text-blue-400" />
-                      Operational Status
+                          <Compass className="h-5 w-5 mr-2 text-emerald-400" />
+                          Performance Metrics
                     </div>
                     <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                      Operational
+                          Normal
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Current Mode:</span>
-                      <span className="font-medium">Science Operations</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Data Downlink:</span>
-                      <span className="font-medium text-emerald-400">Nominal</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Command Uplink:</span>
-                      <span className="font-medium text-emerald-400">Nominal</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Science Instruments:</span>
-                      <span className="font-medium text-emerald-400">All Operational</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Last Contact:</span>
-                      <span className="font-medium">Today, 09:45 UTC</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* EOL Health Gauge Card */}
-              <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
-                <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <div className="flex items-center">
-                      <LifeBuoy className="h-5 w-5 mr-2 text-blue-400" />
-                      EOL Readiness
-                    </div>
-                    <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
-                      Planning Required
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="flex justify-center mb-4">
-                    <div className="relative w-32 h-32">
-                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
-                        <defs>
-                          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#f59e0b" />
-                            <stop offset="100%" stopColor="#fbbf24" />
-                          </linearGradient>
-                        </defs>
-                        <circle cx="50" cy="50" r="45" fill="none" stroke="#2d3a51" strokeWidth="10" />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r="45"
-                          fill="none"
-                          stroke="url(#gaugeGradient)"
-                          strokeWidth="10"
-                          strokeDasharray="282.7"
-                          strokeDashoffset={282.7 * (1 - 0.6)}
-                          transform="rotate(-90 50 50)"
-                        />
-                        <text
-                          x="50"
-                          y="50"
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          fontSize="24"
-                          fontWeight="bold"
-                          fill="white"
-                          className="drop-shadow-md"
-                        >
-                          60%
-                        </text>
-                        <text x="50" y="70" textAnchor="middle" fontSize="10" fill="#94a3b8">
-                          Readiness
-                        </text>
-                      </svg>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Deorbit Plan:</span>
-                      <span className="text-amber-400">In Development</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Passivation Procedures:</span>
-                      <span className="text-emerald-400">Ready</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">Compliance Status:</span>
-                      <span className="text-emerald-400">Compliant</span>
-                    </div>
-                  </div>
+                      <div className="text-4xl font-bold mb-2">{metrics?.performance.attitudeError.toFixed(2)}°</div>
+                      <Progress value={metrics?.performance.percentage} max={100} className="h-2 mb-4 bg-emerald-950/30" />
+                      <div className="text-sm text-gray-400">Attitude control error</div>
                 </CardContent>
               </Card>
             </div>
@@ -1130,20 +729,20 @@ export default function EndOfLifePage() {
                 <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
                   <CardTitle className="text-xl flex items-center">
                     <Layers className="h-5 w-5 mr-2 text-blue-400" />
-                    EOL Metrics Forecast
+                        Health Metrics Forecast
                   </CardTitle>
                   <CardDescription className="text-gray-400">
-                    Projected trends for key EOL metrics through 2028
+                        Projected trends for key health metrics through 2028
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
                   <div className="h-80">
-                    <LineChart data={forecastData} />
+                        <LineChart data={forecast} />
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between border-t border-[#2d3a51] pt-4">
                   <div className="text-sm text-gray-400">
-                    Projections based on current consumption rates and historical trends
+                        Projections based on current measurements and historical trends
                   </div>
                   <Button
                     variant="outline"
@@ -1157,299 +756,11 @@ export default function EndOfLifePage() {
             </div>
           </TabsContent>
 
-          {/* Disposal Options Tab */}
-          <TabsContent value="disposal" className="mt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {disposalOptions.map((option) => (
-                <Card
-                  key={option.id}
-                  className={`bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all ${
-                    option.recommendation === "Recommended"
-                      ? "border-l-4 border-l-emerald-500 hover:border-emerald-500/50"
-                      : option.recommendation === "Not Recommended"
-                        ? "border-l-4 border-l-red-500 hover:border-red-500/50"
-                        : "hover:border-blue-500/30"
-                  }`}
-                >
-                  <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                    <CardTitle className="text-lg flex items-center">
-                      <option.icon
-                        className={`h-5 w-5 mr-2 ${
-                          option.recommendation === "Recommended"
-                            ? "text-emerald-400"
-                            : option.recommendation === "Not Recommended"
-                              ? "text-red-400"
-                              : "text-blue-400"
-                        }`}
-                      />
-                      {option.title}
-                    </CardTitle>
-                    <CardDescription className="text-gray-400">{option.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Feasibility:</span>
-                        <span className={option.feasibility === "Feasible" ? "text-emerald-400" : "text-red-400"}>
-                          {option.feasibility}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Fuel Required:</span>
-                        <span>{option.fuelRequired}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">Recommendation:</span>
-                        <span
-                          className={
-                            option.recommendation === "Recommended"
-                              ? "text-emerald-400"
-                              : option.recommendation === "Not Recommended"
-                                ? "text-red-400"
-                                : "text-blue-400"
-                          }
-                        >
-                          {option.recommendation}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-4 text-sm text-gray-400">
-                      <Info className="h-4 w-4 inline mr-1" />
-                      {option.complianceNote}
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      className={
-                        option.recommendation === "Recommended"
-                          ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 w-full text-white font-medium transition-all"
-                          : "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 w-full text-white font-medium transition-all"
-                      }
-                      disabled={option.recommendation === "Not Recommended"}
-                    >
-                      Simulate {option.title}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-
-            <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30 mb-6">
-              <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                <CardTitle className="text-xl flex items-center">
-                  <Rocket className="h-5 w-5 mr-2 text-blue-400" />
-                  Deorbit Trajectory Simulation
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Simulated path for controlled re-entry over South Pacific Ocean
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="aspect-video bg-[#0f1520] rounded-lg border border-[#2d3a51]/50 flex items-center justify-center overflow-hidden relative">
-                  <div className="absolute inset-0 bg-[url('/placeholder.svg?height=600&width=1200')] opacity-20 blur-sm"></div>
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0f1520] pointer-events-none"></div>
-                  <div className="text-center p-6 relative z-10">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
-                      <Orbit className="h-10 w-10 text-blue-400 opacity-80" />
-                    </div>
-                    <h3 className="text-lg font-medium mb-2">Deorbit Trajectory Visualization</h3>
-                    <p className="text-gray-400 mb-6">3D visualization of planned deorbit trajectory</p>
-                    <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all">
-                      Launch Simulator
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between border-t border-[#2d3a51] pt-4">
-                <div className="text-sm text-gray-400">
-                  Simulation based on current orbital parameters and fuel availability
-                </div>
-                <Button
-                  variant="outline"
-                  className="bg-[#0f1520] border-[#2d3a51] hover:bg-[#1a2234] hover:border-[#3d4a61] transition-colors"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export Trajectory
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
-              <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                <CardTitle className="text-xl flex items-center">
-                  <Shield className="h-5 w-5 mr-2 text-blue-400" />
-                  Compliance with Space Debris Mitigation Guidelines
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="space-y-4">
-                  <div className="flex items-start">
-                    <div className="mr-3 mt-0.5">
-                      <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                        Compliant
-                      </Badge>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">25-Year Rule</h4>
-                      <p className="text-sm text-gray-400">
-                        Satellite will be removed from orbit within 25 years of mission completion through controlled
-                        deorbit.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="mr-3 mt-0.5">
-                      <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                        Compliant
-                      </Badge>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Passivation</h4>
-                      <p className="text-sm text-gray-400">
-                        All energy sources will be depleted at end-of-life to prevent explosions or fragmentation.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="mr-3 mt-0.5">
-                      <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                        Compliant
-                      </Badge>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Casualty Risk</h4>
-                      <p className="text-sm text-gray-400">
-                        Controlled re-entry will ensure debris falls in uninhabited areas, with casualty risk below
-                        1:10,000.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start">
-                    <div className="mr-3 mt-0.5">
-                      <Badge className="bg-gradient-to-r from-emerald-600 to-emerald-500 border-0 text-white font-medium">
-                        Compliant
-                      </Badge>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Collision Avoidance</h4>
-                      <p className="text-sm text-gray-400">
-                        Satellite will maintain collision avoidance capabilities until final deorbit maneuver.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Mission Timeline Tab */}
-          <TabsContent value="timeline" className="mt-6">
-            <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30 mb-6">
-              <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                <CardTitle className="text-xl flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-blue-400" />
-                  EOL Mission Timeline
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Key events in the satellite's end-of-life planning and execution
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="relative pl-6 border-l border-[#2d3a51]">
-                  {timelineEvents.map((event, index) => (
-                    <div key={index} className="mb-6 relative">
-                      <div className="absolute -left-[25px] w-4 h-4 rounded-full bg-gradient-to-r from-blue-600 to-blue-400 shadow-lg shadow-blue-500/20"></div>
-                      <div className="mb-1">
-                        <span className="text-gray-400 text-sm">
-                          {new Date(event.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                      <h4 className="font-medium">{event.event}</h4>
-                      <p className="text-sm text-gray-400 mt-1">{event.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
-                <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                  <CardTitle className="text-lg flex items-center">
-                    <Rocket className="h-5 w-5 mr-2 text-blue-400" />
-                    Mission History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium">Launch</h4>
-                      <p className="text-sm text-gray-400">May 22, 2018 - Vandenberg Air Force Base, CA</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Commissioning Complete</h4>
-                      <p className="text-sm text-gray-400">June 15, 2018 - Satellite fully operational</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Primary Mission Complete</h4>
-                      <p className="text-sm text-gray-400">May 22, 2023 - 5-year design life achieved</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Mission Extension Approved</h4>
-                      <p className="text-sm text-gray-400">April 10, 2023 - Extended to 2026</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">EOL Planning Initiated</h4>
-                      <p className="text-sm text-gray-400">January 1, 2023 - Formal planning process started</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
-                <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                  <CardTitle className="text-lg flex items-center">
-                    <Trash2 className="h-5 w-5 mr-2 text-blue-400" />
-                    Decommissioning Plan
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium">Science Mission End</h4>
-                      <p className="text-sm text-gray-400">December 1, 2025 - Final science data collection</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Deorbit Maneuver</h4>
-                      <p className="text-sm text-gray-400">April 1, 2026 - Controlled deorbit initiation</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Passivation</h4>
-                      <p className="text-sm text-gray-400">April 15, 2026 - Battery discharge and fuel venting</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Atmospheric Re-entry</h4>
-                      <p className="text-sm text-gray-400">May 1, 2026 - Controlled re-entry over South Pacific</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium">Mission Closeout</h4>
-                      <p className="text-sm text-gray-400">June 30, 2026 - Final mission report and data archiving</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
           {/* Alerts Tab */}
           <TabsContent value="alerts" className="mt-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                EOL Alerts & Notifications
+                    Health Alerts & Notifications
               </h3>
               <div className="flex items-center space-x-2">
                 <div className="relative">
@@ -1477,7 +788,9 @@ export default function EndOfLifePage() {
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-red-500/30">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-red-400 mb-1 drop-shadow-glow-red">1</div>
+                        <div className="text-4xl font-bold text-red-400 mb-1 drop-shadow-glow-red">
+                          {alerts.filter(a => a.severity === 'critical').length}
+                        </div>
                     <div className="text-sm text-gray-400">Critical Alerts</div>
                   </div>
                 </CardContent>
@@ -1485,7 +798,9 @@ export default function EndOfLifePage() {
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-amber-500/30">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-amber-400 mb-1 drop-shadow-glow-amber">2</div>
+                        <div className="text-4xl font-bold text-amber-400 mb-1 drop-shadow-glow-amber">
+                          {alerts.filter(a => a.severity === 'warning').length}
+                        </div>
                     <div className="text-sm text-gray-400">Warnings</div>
                   </div>
                 </CardContent>
@@ -1493,7 +808,9 @@ export default function EndOfLifePage() {
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-blue-400 mb-1 drop-shadow-glow-blue">1</div>
+                        <div className="text-4xl font-bold text-blue-400 mb-1 drop-shadow-glow-blue">
+                          {alerts.filter(a => a.severity === 'info').length}
+                        </div>
                     <div className="text-sm text-gray-400">Info Alerts</div>
                   </div>
                 </CardContent>
@@ -1501,7 +818,7 @@ export default function EndOfLifePage() {
               <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-gray-400 mb-1">4</div>
+                        <div className="text-4xl font-bold text-gray-400 mb-1">{alerts.length}</div>
                     <div className="text-sm text-gray-400">Total Alerts</div>
                   </div>
                 </CardContent>
@@ -1515,66 +832,53 @@ export default function EndOfLifePage() {
                   Active Alerts
                 </CardTitle>
                 <CardDescription className="text-gray-400">
-                  Current alerts related to satellite end-of-life status
+                      Current alerts related to satellite health status
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-4">
-                <ScrollArea className="h-[400px] pr-4">
-                  {alerts.map((alert) => (
-                    <div
-                      key={alert.id}
-                      className={`mb-4 p-4 rounded-lg ${
+                    <div className="space-y-4">
+                      {alerts.map((alert, index) => (
+                        <div
+                          key={`${alert.timestamp}-${index}`}
+                          className="flex items-start space-x-4 p-4 rounded-lg bg-[#0f1520]/50 border border-[#2d3a51]"
+                        >
+                          <div
+                            className={`p-2 rounded-full ${
                         alert.severity === "critical"
-                          ? "bg-gradient-to-r from-red-900/30 to-red-900/10 border border-red-800/50"
+                                ? "bg-red-500/20 text-red-400"
                           : alert.severity === "warning"
-                            ? "bg-gradient-to-r from-amber-900/30 to-amber-900/10 border border-amber-800/50"
-                            : "bg-gradient-to-r from-blue-900/30 to-blue-900/10 border border-blue-800/50"
-                      }`}
-                    >
-                      <div className="flex items-start">
-                        <div className="mr-3">
-                          {alert.severity === "critical" ? (
-                            <AlertTriangle className="h-5 w-5 text-red-400" />
-                          ) : alert.severity === "warning" ? (
-                            <AlertTriangle className="h-5 w-5 text-amber-400" />
-                          ) : (
-                            <Info className="h-5 w-5 text-blue-400" />
-                          )}
+                                ? "bg-amber-500/20 text-amber-400"
+                                : "bg-blue-500/20 text-blue-400"
+                            }`}
+                          >
+                            <AlertTriangle className="h-5 w-5" />
                         </div>
                         <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center justify-between">
                             <h4 className="font-medium">{alert.title}</h4>
-                            <span className="text-sm text-gray-400">{new Date(alert.timestamp).toLocaleString()}</span>
-                          </div>
-                          <p className="text-sm text-gray-300">{alert.description}</p>
-                          <div className="flex items-center justify-between mt-3">
                             <Badge
                               className={`${
                                 alert.severity === "critical"
-                                  ? "bg-gradient-to-r from-red-600 to-red-500"
+                                    ? "bg-red-500/20 text-red-400"
                                   : alert.severity === "warning"
-                                    ? "bg-gradient-to-r from-amber-600 to-amber-500"
-                                    : "bg-gradient-to-r from-blue-600 to-blue-500"
-                              } border-0 text-white font-medium`}
-                            >
-                              {alert.severity.charAt(0).toUpperCase() + alert.severity.slice(1)}
+                                    ? "bg-amber-500/20 text-amber-400"
+                                    : "bg-blue-500/20 text-blue-400"
+                                }`}
+                              >
+                                {alert.severity}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 hover:bg-white/10 rounded-lg transition-colors"
-                            >
-                              View Details
-                            </Button>
                           </div>
+                            <p className="text-sm text-gray-400 mt-1">{alert.description}</p>
+                            <div className="text-xs text-gray-500 mt-2">
+                              {new Date(alert.timestamp).toLocaleString()}
                         </div>
                       </div>
                     </div>
                   ))}
-                </ScrollArea>
+                    </div>
               </CardContent>
               <CardFooter className="flex justify-between border-t border-[#2d3a51] pt-4">
-                <div className="text-sm text-gray-400">Showing 4 alerts from the last 7 days</div>
+                    <div className="text-sm text-gray-400">Showing {alerts.length} alerts from the last 7 days</div>
                 <Button
                   variant="outline"
                   className="bg-[#0f1520] border-[#2d3a51] hover:bg-[#1a2234] hover:border-[#3d4a61] transition-colors"
@@ -1585,7 +889,98 @@ export default function EndOfLifePage() {
               </CardFooter>
             </Card>
           </TabsContent>
+
+              {/* Disposal Options Tab */}
+              <TabsContent value="disposal" className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {disposalOptions.map((option) => (
+                    <Card
+                      key={option.id}
+                      className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30"
+                    >
+                      <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                        <CardTitle className="text-lg flex items-center">
+                          <option.icon className="h-5 w-5 mr-2 text-blue-400" />
+                          {option.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-4">
+                        <p className="text-sm text-gray-400 mb-4">{option.description}</p>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Feasibility:</span>
+                            <span className="font-medium">{option.feasibility}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Recommendation:</span>
+                            <span className="font-medium">{option.recommendation}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Compliance:</span>
+                            <span className="font-medium">{option.complianceNote}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Mission Timeline Tab */}
+              <TabsContent value="timeline" className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                    <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                      <CardTitle className="text-lg flex items-center">
+                        <Rocket className="h-5 w-5 mr-2 text-blue-400" />
+                        Mission History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="space-y-4">
+                        {timeline?.history.map((event, index) => (
+                          <div key={index}>
+                            <h4 className="font-medium">{event.event}</h4>
+                            <p className="text-sm text-gray-400">{event.date} - {event.description}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
+                    <CardHeader className="bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
+                      <CardTitle className="text-lg flex items-center">
+                        <Calendar className="h-5 w-5 mr-2 text-blue-400" />
+                        Upcoming Events
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-medium">Deorbit Planning</h4>
+                          <p className="text-sm text-gray-400">Q1 2024 - Detailed planning phase</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium">System Passivation</h4>
+                          <p className="text-sm text-gray-400">Q2 2024 - Prepare for passivation</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium">Final Science Mission</h4>
+                          <p className="text-sm text-gray-400">Q4 2024 - Complete remaining objectives</p>
+                        </div>
+                        <div>
+                          <h4 className="font-medium">Deorbit Maneuver</h4>
+                          <p className="text-sm text-gray-400">Q1 2025 - Execute deorbit sequence</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
         </Tabs>
+          </>
+        )}
       </main>
     </div>
   )

@@ -36,9 +36,9 @@ spring:
             - Path=/api/collisions/**
 
         - id: end-of-life-service
-          uri: http://localhost:8084
+          uri: http://localhost:8005
           predicates:
-            - Path=/api/eol/**, /api/end-of-life/**
+            - Path=/api/eol/**, /api/satellites/**
 
         - id: user-service
           uri: http://localhost:8085
