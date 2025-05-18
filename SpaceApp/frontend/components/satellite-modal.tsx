@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
   const router = useRouter();
   if (!satellite) return null
+  const router = useRouter()
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -49,9 +50,14 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
   }
 
   const handleHealthMonitoring = () => {
-    router.push(`/health-monitoring?satelliteId=${satellite.id}`);
-    onClose();
-  };
+    router.push(`/health-monitoring?norad_id=${satellite.norad_id}`)
+    onClose()
+  }
+
+  const handleEndOfLife = () => {
+    router.push(`/end-of-life?norad_id=${satellite.norad_id}`)
+    onClose()
+  }
 
   // Calculate orbital period based on altitude and orbit type
   const getOrbitalPeriod = () => {
@@ -160,20 +166,27 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
 
             <div>
               <h3 className="text-sm text-gray-400 mb-1 flex items-center">
-                <AlertTriangle className="h-4 w-4 text-[#3b82f6] mr-2" />
-                Description
-              </h3>
-              <p className="text-sm">{satellite?.description}</p>
-            </div>
-
-            <div className="fancy-divider"></div>
-
-            <div>
-              <h3 className="text-sm text-gray-400 mb-1 flex items-center">
                 <Activity className="h-4 w-4 text-[#3b82f6] mr-2" />
                 Orbital Period
               </h3>
               <p className="text-sm">{getOrbitalPeriod()}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Button 
+                className="w-full fancy-button bg-blue-600 hover:bg-blue-700"
+                onClick={handleHealthMonitoring}
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Health Monitoring
+              </Button>
+              <Button 
+                className="w-full fancy-button bg-red-600 hover:bg-red-700"
+                onClick={handleEndOfLife}
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                End of Life
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

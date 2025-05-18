@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
@@ -12,21 +14,52 @@ export default function SignupPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
+  const { signup } = useAuth()
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
-    // Simulate API call
-    setTimeout(() => {
-      console.log("Signup submitted:", { name, email, password })
+    try {
+      await signup({ name, email, password })
       toast({
-        title: "Account Created",
+        title: "Signup Successful",
         description: "Welcome to Orbital Satellite Tracker!",
       })
+      router.push("/satellites")
+    } catch (err) {
+      console.error('Signup error:', err)
+      if (err instanceof Error) {
+        if (err.message.includes('Network error')) {
+          toast({
+            title: "Connection Error",
+            description: "Unable to connect to the server. Please check your internet connection.",
+            variant: "destructive",
+          })
+        } else if (err.message.includes('Failed to fetch')) {
+          toast({
+            title: "Connection Error",
+            description: "Unable to connect to the server. Please try again later.",
+            variant: "destructive",
+          })
+        } else {
+          toast({
+            title: "Signup Failed",
+            description: err.message,
+            variant: "destructive",
+          })
+        }
+      } else {
+        toast({
+          title: "Signup Failed",
+          description: "An unexpected error occurred. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } finally {
       setIsLoading(false)
-      // In a real app, you would handle registration here
-    }, 1500)
+    }
   }
 
   return (
@@ -55,8 +88,8 @@ export default function SignupPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-white fancy-title">Join Orbital</h1>
-            <p className="mt-3 text-gray-300">Create an account to track your satellites.</p>
+            <h1 className="text-4xl font-bold text-white fancy-title">Create your account</h1>
+            <p className="mt-3 text-gray-300">Join Orbital and start tracking satellites.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-6 auth-form">
@@ -114,15 +147,10 @@ export default function SignupPage() {
             </Button>
 
             <p className="text-center text-sm text-gray-400">
-              By signing up, you agree to our{" "}
-              <Link href="#" className="text-blue-400 hover:text-blue-300">
-                Terms of Service
-              </Link>{" "}
-              and{" "}
-              <Link href="#" className="text-blue-400 hover:text-blue-300">
-                Privacy Policy
+              Already have an account?{" "}
+              <Link href="/login" className="text-[#3b82f6] hover:text-[#60a5fa]">
+                Sign in
               </Link>
-              .
             </p>
           </form>
         </motion.div>
