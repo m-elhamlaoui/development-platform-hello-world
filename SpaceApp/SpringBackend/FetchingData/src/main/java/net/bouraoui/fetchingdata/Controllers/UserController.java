@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import net.bouraoui.fetchingdata.Entities.Satellite;
 import net.bouraoui.fetchingdata.Entities.User;
 import net.bouraoui.fetchingdata.Services.Interfaces.UserService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,8 +15,8 @@ import java.util.Optional;
 @AllArgsConstructor
 @RequestMapping("/api/v1/users/")
 public class UserController {
-
-    private final UserService userService;
+    @Autowired
+    private UserService userService;
 
     // Create a new user
     @PostMapping("/createUser")

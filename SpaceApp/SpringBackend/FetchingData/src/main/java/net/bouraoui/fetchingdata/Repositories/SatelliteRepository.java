@@ -8,8 +8,9 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface SatelliteRepository extends MongoRepository<Satellite, Integer> {
+public interface SatelliteRepository extends MongoRepository<Satellite, String> {
 
     @Query(value = "{}", sort = "{ popular : -1 }")
     List<Satellite> findTop30ByOrderByPopularDesc();
+
 }

@@ -8,7 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Getter@Setter@AllArgsConstructor@NoArgsConstructor@Builder
 public class Satellite {
 
-    private int id;
+    private String id;
     private String name;
     private int norad_id;
     private String Owner;
