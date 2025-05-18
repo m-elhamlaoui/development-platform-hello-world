@@ -9,14 +9,18 @@ import org.example.userservice.Service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClientException;
 
 import java.security.Principal;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -40,63 +44,70 @@ public class AuthController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private UserService userService;
+
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody User user) {
-        logger.info("Registering user: {}", user.getEmail());
-
-        User existingUser = userRepository.findByEmail(user.getEmail());
-        if (existingUser != null) {
-            logger.warn("Email already registered: {}", user.getEmail());
-            return ResponseEntity.badRequest().body("Email already exists");
-        }
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        userRepository.save(user);
-
         try {
-            userDetailsService.createUserInFetchDataService(user);
+            // Check if user already exists
+            if (userRepository.findByEmail(user.getEmail()) != null) {
+                return ResponseEntity.badRequest().body("User already exists");
+            }
+
+            // Encode password
+            user.setPassword(passwordEncoder.encode(user.getPassword()));
+
+            // Save user in UserService database
+            userService.saveUser(user);
+
+            try {
+                // Create user in FetchData service
+                userService.createUserInFetchDataService(user);
+            } catch (RestClientException e) {
+                // If FetchData service fails, delete the user from UserService database
+                userService.deleteUser(user.getEmail());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to create user in FetchData service: " + e.getMessage());
+            }
+
+            // Generate JWT token using UserDetails
+            UserDetails userDetails = userService.loadUserByUsername(user.getEmail());
+            String token = jwtUtil.generateToken(userDetails);
+
+            // Return token and user info
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("user", user);
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Failed to create user in FetchData service: {}", e.getMessage());
-            // Optionally, you might want to rollback the user creation in the local database
-            // userRepository.delete(user);
-            return ResponseEntity.status(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)
-                    .body("Failed to create user in FetchData service");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error during signup: " + e.getMessage());
         }
-
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String token = jwtUtil.generateToken(userDetails);
-
-        return ResponseEntity.ok(new AuthResponse(
-                token,
-                user.getEmail(),
-                user.getEmail(),
-                user.getName()
-        ));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody User loginRequest) throws Exception {
-        logger.info("Attempting login for {}", loginRequest.getEmail());
+    public ResponseEntity<?> login(@RequestBody User loginRequest) {
+        try {
+            // Authenticate user
+            UserDetails userDetails = userService.loadUserByUsername(loginRequest.getEmail());
+            if (userDetails == null) {
+                return ResponseEntity.badRequest().body("Invalid email or password");
+            }
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword())
-        );
-        logger.info("Authentication successful");
+            // Generate JWT token
+            String token = jwtUtil.generateToken(userDetails);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(loginRequest.getEmail());
-        String token = jwtUtil.generateToken(userDetails);
+            // Return token
+            Map<String, String> response = new HashMap<>();
+            response.put("token", token);
 
-        User user = userRepository.findByEmail(loginRequest.getEmail());
-        if (user == null) {
-            logger.error("User not found after authentication: {}", loginRequest.getEmail());
-            throw new Exception("User not found after authentication");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error during login: " + e.getMessage());
         }
-
-        return ResponseEntity.ok(new AuthResponse(
-                token,
-                user.getEmail(),
-                user.getEmail(),
-                user.getName()
-        ));
     }
     
 
