@@ -6,7 +6,7 @@ import * as THREE from "three"
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls"
 import { motion } from "framer-motion"
 import { OBJLoader } from 'three-stdlib'
-import { getSatellitePosition } from "../services/satellite-service"
+import * as satellite from 'satellite.js'
 
 // @ts-nocheck
 // If using TypeScript, install types: npm i --save-dev @types/three @types/three-obj-loader
@@ -36,7 +36,13 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
   const earthRef = useRef<THREE.Mesh | null>(null)
   const cloudsRef = useRef<THREE.Mesh | null>(null)
   const autoRotateRef = useRef(true)
-  const [realSatellites, setRealSatellites] = useState<Record<string, any>>({})
+  const [satelliteData, setSatelliteData] = useState<Record<string, {
+    tle1: string;
+    tle2: string;
+    satrec: any;
+    lastUpdate: number;
+    noradId: string;
+  }>>({})
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
@@ -67,6 +73,72 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
       }
     },
   }))
+
+  // Function to fetch TLE data once and store it
+  const fetchAndStoreTLE = async (noradId: string) => {
+    try {
+      const response = await fetch(`https://celestrak.com/NORAD/elements/gp.php?CATNR=${noradId}&FORMAT=TLE`)
+      const text = await response.text()
+      const lines = text.trim().split('\n')
+      if (lines.length >= 3) {
+        const tle1 = lines[1]
+        const tle2 = lines[2]
+        const satrec = satellite.twoline2satrec(tle1, tle2)
+        return {
+          tle1,
+          tle2,
+          satrec,
+          lastUpdate: Date.now(),
+          noradId
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching TLE for satellite ${noradId}:`, error)
+    }
+    return null
+  }
+
+  // Calculate position from stored satellite data
+  const calculatePosition = (satData: any) => {
+    const positionAndVelocity = satellite.propagate(satData.satrec, new Date())
+    const positionEci = positionAndVelocity.position
+    if (!positionEci) return null
+
+    // Convert ECI coordinates to match our scene
+    // Earth radius is 6371 km, we scale it to 2 units in our scene
+    const scale = 2 / 6371 // Scale factor to convert km to scene units
+    
+    // Convert ECI to scene coordinates
+    // Note: ECI coordinates are in km, we convert to scene units
+    return {
+      x: positionEci.x * scale,
+      y: positionEci.y * scale,
+      z: positionEci.z * scale
+    }
+  }
+
+  // Initialize satellite data when satellites change
+  useEffect(() => {
+    const initializeSatellites = async () => {
+      const newData: Record<string, any> = {}
+      for (const sat of satellites) {
+        if (sat.norad_id && !satelliteData[sat.id]) {
+          const data = await fetchAndStoreTLE(sat.norad_id.toString())
+          if (data) {
+            // Store the satellite data
+            newData[sat.id] = {
+              ...data,
+              noradId: sat.norad_id,
+            }
+          }
+        }
+      }
+      if (Object.keys(newData).length > 0) {
+        setSatelliteData(prev => ({ ...prev, ...newData }))
+      }
+    }
+    initializeSatellites()
+  }, [satellites])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -192,52 +264,8 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     starsGeometry.setAttribute("position", new THREE.Float32BufferAttribute(starsVertices, 3))
     scene.add(new THREE.Points(starsGeometry, starsMaterial))
 
-    // Helper to generate unique orbital parameters
-    function getOrbitParams(index: number, total: number, satellite: any) {
-      // Eccentricity: 0 (circle) to 0.3 (mild ellipse)
-      const eccentricity = satellite.orbitType === 'Geostationary' ? 0 : 0.1 + 0.2 * (index % 5) / 5;
-      // Semi-major axis (radius)
-      let a = 2.2;
-      if (satellite.orbitType === 'Geostationary') a = 3.5;
-      else if (satellite.orbitType === 'Medium Earth Orbit') a = 3.0;
-      else if (satellite.orbitType === 'Low Earth Orbit') a = 2.4;
-      else if (satellite.orbitType === 'Sun-synchronous') a = 2.6;
-      // Semi-minor axis
-      const b = a * (1 - eccentricity);
-      // Inclination: 0 to 60 degrees
-      let inclination = 0;
-      if (satellite.orbitType === 'Sun-synchronous') inclination = Math.PI / 3;
-      else if (satellite.orbitType === 'Low Earth Orbit') inclination = Math.PI / 6 + (index % 7) * 0.05;
-      else if (satellite.orbitType === 'Medium Earth Orbit') inclination = Math.PI / 12 + (index % 5) * 0.03;
-      // Argument of periapsis (rotation of ellipse in plane)
-      const argPeriapsis = (index / total) * Math.PI * 2;
-      return { a, b, eccentricity, inclination, argPeriapsis };
-    }
-
     satellites.forEach((satellite, index) => {
-      const { a, b, inclination, argPeriapsis } = getOrbitParams(index, satellites.length, satellite);
-      const orbitSpeed = satellite.orbitType === 'Geostationary' ? 0.000005 : satellite.orbitType === 'Medium Earth Orbit' ? 0.00001 : satellite.orbitType === 'Low Earth Orbit' ? 0.00002 : 0.000015;
       const objLoader = new OBJLoader();
-
-      // --- Orbit Trajectory Line ---
-      const orbitPoints: THREE.Vector3[] = [];
-      const segments = 128;
-      for (let i = 0; i <= segments; i++) {
-        const theta = (i / segments) * Math.PI * 2;
-        const x = a * Math.cos(theta + argPeriapsis);
-        const y = b * Math.sin(theta + argPeriapsis) * Math.sin(inclination);
-        const z = b * Math.sin(theta + argPeriapsis) * Math.cos(inclination);
-        orbitPoints.push(new THREE.Vector3(x, y, z));
-      }
-      const orbitGeometry = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-      const orbitMaterial = new THREE.LineBasicMaterial({
-        color: satellite.color || 0x3b82f6,
-        transparent: true,
-        opacity: 0.5,
-        linewidth: 1,
-      });
-      const orbitLine = new THREE.Line(orbitGeometry, orbitMaterial);
-      scene.add(orbitLine);
 
       objLoader.load('/assets/3d/satellite.obj', (object: THREE.Object3D) => {
         object.traverse((child: any) => {
@@ -254,21 +282,15 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
         // Initial position
         const angle = (index / satellites.length) * Math.PI * 2;
         object.position.set(
-          a * Math.cos(angle + argPeriapsis),
-          b * Math.sin(angle + argPeriapsis) * Math.sin(inclination),
-          b * Math.sin(angle + argPeriapsis) * Math.cos(inclination),
+          Math.cos(angle),
+          Math.sin(angle) * Math.sin(Math.PI / 6),
+          Math.sin(angle) * Math.cos(Math.PI / 6),
         );
         object.userData.satellite = satellite;
         scene.add(object);
         satelliteObjects[satellite.id] = {
           mesh: object,
-          a,
-          b,
-          inclination,
-          argPeriapsis,
-          orbitSpeed,
           initialAngle: angle,
-          orbit: orbitLine,
         };
       });
     });
@@ -302,19 +324,38 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     const animate = () => {
       requestAnimationFrame(animate)
       const delta = clock.getDelta()
+
+      // Update Earth and clouds rotation
       if (earthRef.current && autoRotateRef.current) {
         earthRef.current.rotation.y += 0.02 * delta
       }
       if (cloudsRef.current && autoRotateRef.current) {
         cloudsRef.current.rotation.y += 0.022 * delta
       }
-      Object.values(satelliteObjects).forEach((obj: any) => {
-        const time = Date.now() * obj.orbitSpeed;
-        const angle = obj.initialAngle + time;
-        obj.mesh.position.x = obj.a * Math.cos(angle + obj.argPeriapsis);
-        obj.mesh.position.y = obj.b * Math.sin(angle + obj.argPeriapsis) * Math.sin(obj.inclination);
-        obj.mesh.position.z = obj.b * Math.sin(angle + obj.argPeriapsis) * Math.cos(obj.inclination);
+
+      // Update satellite positions using stored data
+      Object.entries(satelliteObjects).forEach(([id, obj]) => {
+        const satData = satelliteData[id]
+        if (satData && obj.mesh) {
+          const position = calculatePosition(satData)
+          if (position) {
+            // Apply the position
+            obj.mesh.position.set(position.x, position.y, position.z)
+            
+            // Make satellite face the direction of travel
+            const velocity = satellite.propagate(satData.satrec, new Date()).velocity
+            if (velocity) {
+              const direction = new THREE.Vector3(velocity.x, velocity.y, velocity.z).normalize()
+              obj.mesh.lookAt(
+                obj.mesh.position.x + direction.x,
+                obj.mesh.position.y + direction.y,
+                obj.mesh.position.z + direction.z
+              )
+            }
+          }
+        }
       })
+
       controls.update()
       renderer.render(scene, camera)
     }
@@ -331,49 +372,13 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
     window.addEventListener("resize", handleResize)
     setScene(scene)
     setSatelliteObjects(satelliteObjects)
-
-    // Fetch satellite positions
-    const fetchSatellitePositions = async () => {
-      // Updated NORAD IDs for active satellites
-      const noradIds = [
-        '25544',  // ISS
-        '33591',  // NOAA 19
-        '25338',  // COSMOS 2251
-        '37849'   // Starlink
-      ];
-      
-      for (const noradId of noradIds) {
-        try {
-          console.log(`Attempting to fetch satellite ${noradId}...`);
-          const satellite = await getSatellitePosition(noradId);
-          console.log(`Successfully fetched satellite ${noradId}:`, satellite);
-          setRealSatellites(prev => ({
-            ...prev,
-            [noradId]: satellite
-          }));
-        } catch (error) {
-          console.error(`Failed to fetch satellite ${noradId}:`, error);
-          // Remove the satellite from the state if it was previously added
-          setRealSatellites(prev => {
-            const newState = { ...prev };
-            delete newState[noradId];
-            return newState;
-          });
-        }
-      }
-    };
-
-    fetchSatellitePositions();
-    const interval = setInterval(fetchSatellitePositions, 60000); // Update every minute
-
     return () => {
       window.removeEventListener("resize", handleResize)
       renderer.domElement.removeEventListener("click", handleClick)
       containerRef.current?.removeChild(renderer.domElement)
       renderer.dispose()
-      clearInterval(interval)
     }
-  }, [satellites])
+  }, [satellites, satelliteData])
 
   // Update satellite visibility and highlighting when filtered or active
   useEffect(() => {
@@ -388,26 +393,14 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
 
       // Update visibility
       obj.mesh.visible = isVisible
-      if (obj.orbit) obj.orbit.visible = isVisible
-      if (obj.trail) obj.trail.visible = isVisible
 
       // Update highlighting for active satellite
       if (isActive) {
         if (obj.glow) obj.glow.scale.set(2, 2, 2)
         if (obj.glow && obj.glow.material) obj.glow.material.opacity = 0.5
-        if (obj.orbit && obj.orbit.material && obj.mesh && obj.mesh.material && obj.mesh.material.color) {
-          obj.orbit.material.opacity = 0.8
-          obj.orbit.material.color.set(0xffffff)
-        }
-        if (obj.trail && obj.trail.material) obj.trail.material.opacity = 0.5
       } else {
         if (obj.glow) obj.glow.scale.set(1, 1, 1)
         if (obj.glow && obj.glow.material) obj.glow.material.opacity = 0.3
-        if (obj.orbit && obj.orbit.material && obj.mesh && obj.mesh.material && obj.mesh.material.color) {
-          obj.orbit.material.opacity = 0.3
-          obj.orbit.material.color.set(obj.mesh.material.color)
-        }
-        if (obj.trail && obj.trail.material) obj.trail.material.opacity = 0.2
       }
     })
   }, [satellites, scene, satelliteObjects, activeSatellite])
@@ -419,48 +412,6 @@ const EarthGlobe = forwardRef<unknown, EarthGlobeProps>(({
       controlsRef.current.maxDistance = Math.min(10, zoomLevel + 2)
     }
   }, [zoomLevel])
-
-  // Update satellite positions
-  useEffect(() => {
-    if (!scene || !satelliteObjects) return
-
-    Object.values(realSatellites).forEach((satellite) => {
-      if (satelliteObjects[satellite.id]) {
-        satelliteObjects[satellite.id].position.set(
-          satellite.position.x,
-          satellite.position.y,
-          satellite.position.z
-        );
-      } else {
-        // Create new satellite object using OBJ model
-        const objLoader = new OBJLoader();
-        objLoader.load('/assets/3d/satellite.obj', (object: THREE.Object3D) => {
-          object.traverse((child: any) => {
-            if (child.isMesh) {
-              child.material = new THREE.MeshPhongMaterial({
-                color: satellite.color,
-                emissive: satellite.color,
-                emissiveIntensity: 0.7,
-                shininess: 30,
-              });
-            }
-          });
-          object.scale.set(0.05, 0.05, 0.05);
-          object.position.set(
-            satellite.position.x,
-            satellite.position.y,
-            satellite.position.z
-          );
-          object.userData.satellite = satellite;
-          scene.add(object);
-          setSatelliteObjects(prev => ({
-            ...prev,
-            [satellite.id]: object
-          }));
-        });
-      }
-    });
-  }, [scene, satelliteObjects, realSatellites])
 
   return (
     <div className="relative w-full h-full">

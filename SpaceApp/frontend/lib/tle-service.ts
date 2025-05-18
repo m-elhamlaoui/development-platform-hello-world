@@ -5,103 +5,165 @@ interface TLEEntry {
   line1: string
   line2: string
   noradId: string
-}
-
-interface CachedTLE {
-  data: TLEEntry[]
-  timestamp: number
+  timestamp: string
 }
 
 export class TLEService {
-  private readonly CACHE_KEY = 'satellite_tle_cache'
-  private readonly CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
+  private updateInterval: NodeJS.Timeout | null = null
+  private userEmail: string | null = null
+  private cache = new Map<string, { data: Satellite[], timestamp: number }>()
+  private readonly CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
-  async fetchTLEData(satellites: Satellite[]): Promise<TLEEntry[]> {
-    const cachedData = this.loadCachedData()
-    if (cachedData) {
-      this.cleanOldTLEs(cachedData)
-      return cachedData.data
+  constructor() {
+    this.startPeriodicUpdates()
+  }
+
+  setUserEmail(email: string) {
+    console.log('Setting user email:', email);
+    this.userEmail = email
+  }
+
+  private startPeriodicUpdates() {
+    // Update TLE data every 6 hours
+    this.updateInterval = setInterval(() => {
+      this.updateAllTLEs()
+    }, 6 * 60 * 60 * 1000)
+  }
+
+  async updateAllTLEs() {
+    try {
+      console.log('Updating all TLEs...');
+      return await this.fetchTLEData()
+    } catch (error) {
+      console.error('Error updating TLE data:', error)
+      return []
+    }
+  }
+
+  async fetchTLEData(): Promise<TLEEntry[]> {
+    if (!this.userEmail) {
+      throw new Error('User email not set')
     }
 
-    const noradIds = satellites
-      .filter(sat => sat.norad_id)
-      .map(sat => sat.norad_id as string)
-      .join(',')
-
-    if (!noradIds) return []
-
     try {
-      const response = await fetch(
-        `https://celestrak.com/NORAD/elements/gp.php?CATNR=${noradIds}&FORMAT=TLE`
-      )
-      const text = await response.text()
-      const tleData = this.parseTLEData(text)
+      console.log('Fetching TLE data for user:', this.userEmail);
       
-      this.saveCachedData(tleData)
-      return tleData
+      // Check cache first
+      const cachedData = this.cache.get(this.userEmail)
+      const now = Date.now()
+      if (cachedData && (now - cachedData.timestamp) < this.CACHE_DURATION) {
+        return this.convertSatellitesToTLEEntries(cachedData.data)
+      }
+
+      // Get user's satellites from the API endpoint
+      const userSatellitesResponse = await fetch(`http://localhost:8080/api/v1/users/stallitesTrackeByUser/${this.userEmail}`)
+      if (!userSatellitesResponse.ok) {
+        throw new Error(`HTTP error! status: ${userSatellitesResponse.status}`)
+      }
+      const userSatellites: Satellite[] = await userSatellitesResponse.json()
+      console.log('Received user satellites:', userSatellites);
+
+      // Get NORAD IDs
+      const noradIds = userSatellites
+        .filter(sat => sat.norad_id)
+        .map(sat => sat.norad_id)
+        .join(',')
+      
+      console.log('NORAD IDs to fetch:', noradIds);
+
+      if (!noradIds) {
+        console.log('No NORAD IDs found in user satellites');
+        return []
+      }
+
+      // Fetch TLE data
+      const response = await fetch(
+        `https://celestrak.org/NORAD/elements/gp.php?CATNR=${noradIds}&FORMAT=TLE`
+      )
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      const text = await response.text()
+      console.log('Received TLE data from Celestrak:', text);
+      
+      const entries = this.parseTLEData(text, userSatellites)
+      console.log('Parsed TLE entries:', entries);
+      
+      // Update cache
+      this.cache.set(this.userEmail, {
+        data: userSatellites.map(sat => {
+          const entry = entries.find(e => e.noradId === sat.norad_id.toString())
+          return {
+            ...sat,
+            tle: entry ? {
+              line1: entry.line1,
+              line2: entry.line2,
+              timestamp: entry.timestamp
+            } : undefined
+          }
+        }),
+        timestamp: now
+      })
+
+      return entries
     } catch (error) {
       console.error('Error fetching TLE data:', error)
       return []
     }
   }
 
-  private parseTLEData(text: string): TLEEntry[] {
+  private convertSatellitesToTLEEntries(satellites: Satellite[]): TLEEntry[] {
+    return satellites
+      .filter(sat => sat.tle)
+      .map(sat => ({
+        name: sat.name,
+        line1: sat.tle!.line1,
+        line2: sat.tle!.line2,
+        noradId: sat.norad_id!.toString(),
+        timestamp: sat.tle!.timestamp
+      }))
+  }
+
+  private parseTLEData(text: string, userSatellites: Satellite[]): TLEEntry[] {
+    console.log('Parsing TLE data for satellites:', userSatellites);
     const lines = text.trim().split('\n')
     const entries: TLEEntry[] = []
+    const satelliteMap = new Map(userSatellites.map(sat => [sat.norad_id, sat]))
 
     for (let i = 0; i < lines.length; i += 2) {
       if (i + 1 >= lines.length) break
-
+      
       const line1 = lines[i].trim()
       const line2 = lines[i + 1].trim()
-
-      if (this.isValidTLE(line1, line2)) {
+      
+      if (line1.startsWith('1 ') && line2.startsWith('2 ')) {
         const noradId = line2.substring(2, 7)
-        entries.push({
-          name: `Satellite ${noradId}`,
-          line1,
-          line2,
-          noradId
-        })
+        console.log('Found TLE for NORAD ID:', noradId);
+        
+        const satellite = satelliteMap.get(noradId)
+        if (satellite) {
+          entries.push({
+            name: satellite.name,
+            line1,
+            line2,
+            noradId,
+            timestamp: new Date().toISOString()
+          })
+        }
       }
     }
-
+    
+    console.log('Parsed TLE entries:', entries);
     return entries
   }
 
-  private isValidTLE(line1: string, line2: string): boolean {
-    return line1.startsWith('1 ') && line2.startsWith('2 ')
-  }
-
-  private loadCachedData(): CachedTLE | null {
-    try {
-      const cached = localStorage.getItem(this.CACHE_KEY)
-      if (!cached) return null
-
-      const data = JSON.parse(cached) as CachedTLE
-      if (Date.now() - data.timestamp > this.CACHE_DURATION) {
-        localStorage.removeItem(this.CACHE_KEY)
-        return null
-      }
-
-      return data
-    } catch {
-      return null
+  public cleanup() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval)
+      this.updateInterval = null
     }
   }
+}
 
-  private saveCachedData(data: TLEEntry[]): void {
-    const cache: CachedTLE = {
-      data,
-      timestamp: Date.now()
-    }
-    localStorage.setItem(this.CACHE_KEY, JSON.stringify(cache))
-  }
-
-  private cleanOldTLEs(cachedData: CachedTLE): void {
-    const now = Date.now()
-    if (now - cachedData.timestamp > this.CACHE_DURATION) {
-      localStorage.removeItem(this.CACHE_KEY)
-    }
-  }
-} 
+// Create a singleton instance
+export const tleService = new TLEService() 
