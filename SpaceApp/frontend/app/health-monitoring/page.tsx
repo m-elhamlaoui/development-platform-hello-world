@@ -53,6 +53,7 @@ import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav";
 import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth';
 import { cn } from "@/lib/utils"
+import { useSearchParams, useRouter } from 'next/navigation'
 
 type MetricStatus = 'normal' | 'warning' | 'critical';
 type AlertSeverity = 'info' | 'warning' | 'critical';
@@ -109,6 +110,17 @@ interface AvailableRanges {
   "24h": boolean;
   "7d": boolean;
   "30d": boolean;
+}
+
+// Add new interface for Satellite
+interface Satellite {
+  _id: string;
+  name: string;
+  norad_id: number;
+  Owner: string;
+  launchDate: string;
+  launchSite: string;
+  popular: string;
 }
 
 // Mock data for satellite health metrics
@@ -655,6 +667,12 @@ const getStatus = (
 };
 
 export default function HealthMonitoringPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [satellites, setSatellites] = useState<Satellite[]>([]);
+  const [filteredSatellites, setFilteredSatellites] = useState<Satellite[]>([]);
+  const [satelliteSearch, setSatelliteSearch] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState("all");
   const [satellitePrimaryData, setSatellitePrimaryData] = useState<SatelliteData | null>(null)
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
   const [detailedMetricOpen, setDetailedMetricOpen] = useState(false)
@@ -664,13 +682,65 @@ export default function HealthMonitoringPage() {
   const [lastUpdated, setLastUpdated] = useState(new Date())
   const [overallHealth, setOverallHealth] = useState<number>(100)
 
-  const satelliteId = 48272
+  // Get noradId from URL or use default
+  const noradId = Number(searchParams.get('noradId')) || 48272;
+
+  // Fetch satellites list (mock for now)
+  useEffect(() => {
+    const fetchSatellites = async () => {
+      try {
+        // TODO: Replace with actual API call
+        const mockSatellites: Satellite[] = [
+          {
+            _id: "68125f824cdfb96f2c352962",
+            name: "SL-1 R/B",
+            norad_id: 1,
+            Owner: "CIS",
+            launchDate: "1957-10-04",
+            launchSite: "TYMSC",
+            popular: "no"
+          },
+          {
+            _id: "68125f824cdfb96f2c352963",
+            name: "ROBUSTA 1B",
+            norad_id: 42792,
+            Owner: "France",
+            launchDate: "2017-06-23",
+            launchSite: "KIMSC",
+            popular: "no"
+          }
+        ];
+        setSatellites(mockSatellites);
+        setFilteredSatellites(mockSatellites);
+      } catch (error) {
+        console.error('Failed to fetch satellites:', error);
+      }
+    };
+
+    fetchSatellites();
+  }, []);
+
+  // Filter satellites based on search and owner filter
+  useEffect(() => {
+    const filtered = satellites.filter(sat => {
+      const matchesSearch = sat.name.toLowerCase().includes(satelliteSearch.toLowerCase()) ||
+                          sat.norad_id.toString().includes(satelliteSearch);
+      const matchesOwner = ownerFilter === "all" || sat.Owner === ownerFilter;
+      return matchesSearch && matchesOwner;
+    });
+    setFilteredSatellites(filtered);
+  }, [satelliteSearch, ownerFilter, satellites]);
+
+  // Handle satellite selection
+  const handleSatelliteSelect = (noradId: number) => {
+    router.push(`/health-monitoring?noradId=${noradId}`);
+  };
 
   // Fetch backend data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const raw = await getLatestHealthStatus(satelliteId);
+        const raw = await getLatestHealthStatus(noradId);
         console.log('data : ', raw);
         const transformed: SatelliteData = {
           id: raw.noradId,
@@ -738,7 +808,7 @@ export default function HealthMonitoringPage() {
     const interval = setInterval(fetchData, 3600000); // every hour
 
     return () => clearInterval(interval);
-  }, [satelliteId]);
+  }, [noradId]);
 
   // Calculate overall health percentage when data changes
   useEffect(() => {
@@ -814,6 +884,58 @@ export default function HealthMonitoringPage() {
           <MainNav />
           <div className="ml-auto flex items-center space-x-4">
             <UserNav />
+          </div>
+          
+          {/* Add Satellite Selector */}
+          <div className="flex items-center space-x-4 ml-4">
+            <div className="w-[300px]">
+              <Select
+                value={noradId.toString()}
+                onValueChange={(value) => handleSatelliteSelect(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Satellite" />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      placeholder="Search satellites..."
+                      value={satelliteSearch}
+                      onChange={(e) => setSatelliteSearch(e.target.value)}
+                      className="mb-2"
+                    />
+                    <Select
+                      value={ownerFilter}
+                      onValueChange={setOwnerFilter}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Filter by Owner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Owners</SelectItem>
+                        {Array.from(new Set(satellites.map(s => s.Owner))).map(owner => (
+                          <SelectItem key={owner} value={owner}>
+                            {owner}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {filteredSatellites.map((satellite) => (
+                      <SelectItem key={satellite._id} value={satellite.norad_id.toString()}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{satellite.name}</span>
+                          <span className="text-sm text-gray-500">
+                            NORAD: {satellite.norad_id} | Owner: {satellite.Owner}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </header>
