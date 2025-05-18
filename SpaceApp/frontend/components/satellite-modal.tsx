@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 
 export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
-  const router = useRouter();
+  
   if (!satellite) return null
   const router = useRouter()
 
