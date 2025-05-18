@@ -52,7 +52,7 @@ public class ConsumingData {
                             e -> Float.parseFloat(e.getValue().toString())
                     ));
             healthStatusData.setExplanation(explanation);
-            healthStatusData.setTimestamp(LocalDateTime.now().withMinute(0).withSecond(0).withNano(0));
+            healthStatusData.setTimestamp(LocalDateTime.now());
 
 
             hsRepository.save(healthStatusData);

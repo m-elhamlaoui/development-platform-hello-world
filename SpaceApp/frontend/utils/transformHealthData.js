@@ -37,17 +37,29 @@ const generateAlerts = (apiData) => {
   return alerts;
 };
 
-export const transformToFrontendFormat = (apiData) => {
-  const launchDate = new Date();
-  launchDate.setDate(launchDate.getDate() - apiData.timeSinceLaunch);
+const formatTimeSinceLaunch = (days) => {
+  const years = Math.floor(days / 365);
+  const remainingDays = Math.round(days % 365);
+  
+  if (years === 0) {
+    return `${remainingDays} days`;
+  } else if (remainingDays === 0) {
+    return `${years} ${years === 1 ? 'year' : 'years'}`;
+  } else {
+    return `${years} ${years === 1 ? 'year' : 'years'} ${remainingDays} days`;
+  }
+};
 
+export const transformToFrontendFormat = (apiData) => {
   return {
-    id: apiData.satelliteId,
+    id: apiData.noradId,
     name: apiData.satelliteName,
-    launchDate: launchDate.toISOString(),
+    timestamp: apiData.timestamp,
+    prediction: apiData.prediction,
+    probability: apiData.probability,
     metrics: {
       time_since_launch: {
-        value: formatDistanceToNow(launchDate),
+        value: formatTimeSinceLaunch(apiData.timeSinceLaunch),
         days: apiData.timeSinceLaunch,
         status: 'normal',
         history: generateMockHistory(apiData.timeSinceLaunch, 7, 0.001)
@@ -92,6 +104,9 @@ export const transformToFrontendFormat = (apiData) => {
         history: Array(7).fill(apiData.thermalControlStatus === 1 ? 'NORMAL' : 'OVERHEATING')
       }
     },
-    alerts: generateAlerts(apiData)
+    alerts: generateAlerts({
+      solarPanelTemperature: apiData.solarPanelTemperature,
+      attitudeControlError: apiData.attitudeControlError
+    })
   };
 };

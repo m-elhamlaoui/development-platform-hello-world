@@ -61,7 +61,7 @@ import pandas as pd
 def predict_health_status(data):
 
     scaler_path = os.path.join(settings.BASE_DIR, 'health_service', 'scaler.pkl')
-    model_path = os.path.join(settings.BASE_DIR, 'health_service', 'xgboost.pkl')
+    model_path = os.path.join(settings.BASE_DIR, 'health_service', 'xgboost_model.pkl')
 
     # Load model and scaler
     scaler = joblib.load(scaler_path)
@@ -99,20 +99,27 @@ def predict_health_status(data):
     'thermal_control_status'
 ]
     
-    features = pd.DataFrame([[data.get(f) for f in feature_names]], columns=feature_names)
-    scaled_features = scaler.transform(features)
+    #features = pd.DataFrame([[data.get(f) for f in feature_names]], columns=feature_names)
+    #scaled_features = scaler.transform(features)
 
     # Predict class and probability
-    prediction = int(model.predict(scaled_features)[0])
-    probability = float(model.predict_proba(scaled_features)[0][1])  # probability of class 1
+    #prediction = int(model.predict(scaled_features)[0])
+    #probability = float(model.predict_proba(scaled_features)[0][1])  # probability of class 1
 
+    features = pd.DataFrame([[data.get(f) for f in feature_names]], columns=feature_names)
 
+    # Predict class and probability
+    prediction = int(model.predict(features)[0])
+    probability = float(model.predict_proba(features)[0][1])  # Probability of class 1
 
-    # Explainability using SHAP
+    # SHAP Explanation (no preprocessing needed)
     explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(scaled_features)
-    
+    shap_values = explainer.shap_values(features)
+
     explanation = dict(zip(feature_names, shap_values[0].tolist()))
-    return {"prediction": prediction,
+    
+    return {
+        "prediction": prediction,
         "probability": probability,
-        "explanation": explanation}
+        "explanation": explanation
+    }
