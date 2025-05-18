@@ -6,13 +6,29 @@ import { motion } from "framer-motion"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import { MotionDiv } from "@/components/ui/motion"
 
-export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
+interface Satellite {
+  name: string;
+  norad_id: number;
+  altitude?: string;
+  orbitType?: string;
+  status: string;
+  launchDate: string;
+}
+
+interface SatelliteModalProps {
+  satellite: Satellite;
+  onClose: () => void;
+  onViewDetails?: (satellite: Satellite) => void;
+}
+
+export default function SatelliteModal({ satellite, onClose, onViewDetails }: SatelliteModalProps) {
   
   if (!satellite) return null
   const router = useRouter()
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string): string => {
     switch (status) {
       case "Active":
         return "text-green-400"
@@ -61,11 +77,17 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
 
   // Calculate orbital period based on altitude and orbit type
   const getOrbitalPeriod = () => {
+    // Check if altitude exists
+    if (!satellite?.altitude) return "Unknown"
+
     // Extract numeric value from altitude string
     const altMatch = satellite.altitude.match(/(\d+)/)
     if (!altMatch) return "Unknown"
 
     const altValue = Number.parseInt(altMatch[0])
+
+    // Check if orbit type exists
+    if (!satellite?.orbitType) return "Unknown"
 
     if (satellite.orbitType === "Geostationary") {
       return "24 hours" // Geostationary orbits have a 24-hour period
@@ -83,13 +105,13 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
   }
 
   return (
-    <motion.div
+    <MotionDiv
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      <motion.div
+      <MotionDiv
         className="bg-[#131c2e] border border-[#1e2a41] rounded-lg w-full max-w-md overflow-hidden fancy-card"
         initial={{ scale: 0.9, y: 20 }}
         animate={{ scale: 1, y: 0 }}
@@ -303,7 +325,7 @@ export default function SatelliteModal({ satellite, onClose, onViewDetails }) {
             </Button>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </MotionDiv>
+    </MotionDiv>
   )
 }

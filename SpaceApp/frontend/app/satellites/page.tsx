@@ -10,7 +10,8 @@ import { satellites } from "@/lib/data"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
 import { Button } from "@/components/ui/button"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, HTMLMotionProps, AnimatePresence, MotionProps } from "framer-motion"
+import type { Variants } from "framer-motion"
 import { generateStars } from "@/lib/stars"
 import { toast } from "@/components/ui/use-toast"
 import {
@@ -28,6 +29,10 @@ import axios from 'axios'
 import axiosRetry from 'axios-retry'
 import Cookies from 'js-cookie'
 import React from 'react'
+import { useTrackedSatellites } from "@/hooks/useTrackedSatellites"
+import { MotionDiv, MotionButton } from "@/components/ui/motion"
+
+// @ts-nocheck
 
 // Configure axios retry
 axiosRetry(axios, { 
@@ -38,15 +43,28 @@ axiosRetry(axios, {
   }
 });
 
+// Type definitions for motion components
+type MotionDivProps = {
+  className?: string;
+  style?: React.CSSProperties;
+  children?: React.ReactNode;
+  ref?: React.RefObject<HTMLDivElement>;
+  key?: string;
+  onClick?: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  initial?: any;
+  animate?: any;
+  exit?: any;
+  whileHover?: any;
+  whileTap?: any;
+  transition?: any;
+};
+
+const MotionDiv = motion.div as unknown as React.FC<MotionDivProps>;
+
 // Generate stars once at module level
 const initialStars = generateStars(200)
-
-// Cache for storing satellite data
-const satelliteCache = new Map<string, { data: any[], timestamp: number }>()
-const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
-
-// Add localStorage key
-const STORAGE_KEY = 'satellite_data'
 
 interface EarthGlobeRef {
   zoomIn: () => void
@@ -85,28 +103,45 @@ export default React.memo(function SatellitesPage() {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [isAutoRotate, setIsAutoRotate] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [satellites, setSatellites] = useState<Satellite[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   const globeRef = useRef<EarthGlobeRef>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
-  // Add debugging for user state
+  // Use our new hook
+  const { satellites, isLoading: loading, error, refreshSatellites } = useTrackedSatellites(user?.email || '')
+
+  // Add a handler for the refresh button
+  const handleRefresh = () => {
+    refreshSatellites();
+    toast({
+      title: "Refreshing satellites",
+      description: "Fetching latest satellite data...",
+    });
+  };
+
+  // Update the useEffect for token check
   useEffect(() => {
     const token = Cookies.get('token');
-    console.log('Auth state:', {
-      user,
-      isAuthenticated: !!user,
-      userEmail: user?.email,
-      token: token
-    });
+    if (!token) {
+      console.log('No token found, redirecting to login');
+      router.replace('/login');
+      return;
+    }
+  }, [router]);
 
-    // If we have a token but no user, try to fetch user data
-    if (token && !user) {
+  // Update the useEffect for user state debugging
+  useEffect(() => {
+    const token = Cookies.get('token');
+    if (!token) return;
+
+    if (!user) {
       console.log('Token exists but no user, fetching user data...');
-      fetchUserData(token);
+      fetchUserData(token).catch((error) => {
+        console.error('Error fetching user data:', error);
+        Cookies.remove('token');
+        router.replace('/login');
+      });
     }
   }, [user]);
 
@@ -115,193 +150,49 @@ export default React.memo(function SatellitesPage() {
       const response = await axios.get('http://localhost:8080/api/auth/me', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        timeout: 5000
       });
       console.log('User data fetched:', response.data);
-      // You'll need to update your auth context with this data
-      // This depends on how your auth context is implemented
     } catch (error) {
       console.error('Error fetching user data:', error);
       // If the token is invalid, clear it and redirect to login
       Cookies.remove('token');
-      router.push('/login');
+      router.replace('/login');
+      throw error;
     }
   };
 
-  // Redirect if not logged in
-  useEffect(() => {
-    const token = Cookies.get('token');
-    if (!token) {
-      console.log('No token found, redirecting to login');
-      router.push('/login');
-    }
-  }, [router]);
-
-  // Add function to save satellites to localStorage
-  const saveSatellitesToStorage = useCallback((satellites: Satellite[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(satellites));
-    } catch (error) {
-      console.error('Error saving satellites to storage:', error);
-    }
-  }, []);
-
-  // Add function to load satellites from localStorage
-  const loadSatellitesFromStorage = useCallback(() => {
-    try {
-      const storedData = localStorage.getItem(STORAGE_KEY);
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        setSatellites(parsedData);
-        return parsedData;
-      }
-    } catch (error) {
-      console.error('Error loading satellites from storage:', error);
-    }
-    return null;
-  }, []);
-
-  // Modify fetchTrackedSatellites to use localStorage
-  const fetchTrackedSatellites = useCallback(async () => {
-    const token = Cookies.get('token');
-    if (!token) {
-      console.log('No token found in fetchTrackedSatellites');
-      // Try to load from localStorage if no token
-      const storedSatellites = loadSatellitesFromStorage();
-      if (storedSatellites) {
-        setSatellites(storedSatellites);
-      }
-      return;
-    }
-
-    try {
-      console.log('Fetching satellites with token');
-      setLoading(true);
-      setError(null);
-
-      // Get user email from token
-      const tokenData = JSON.parse(atob(token.split('.')[1]));
-      const userEmail = tokenData.sub;
-      console.log('User email from token:', userEmail);
-
-      // Check cache first
-      const cachedData = satelliteCache.get(userEmail);
-      const now = Date.now();
-      if (cachedData && (now - cachedData.timestamp) < CACHE_DURATION) {
-        console.log('Using cached data');
-        setSatellites(prev => {
-          // Only update if the data is different
-          if (JSON.stringify(prev) !== JSON.stringify(cachedData.data)) {
-            saveSatellitesToStorage(cachedData.data);
-            return cachedData.data;
-          }
-          return prev;
-        });
-        setLoading(false);
-        return;
-      }
-      
-      // Fix the API endpoint URL
-      const response = await axios.get(`http://localhost:8080/api/v1/users/stallitesTrackeByUser/${userEmail}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        timeout: 10000,
-      });
-      
-      console.log('API Response:', response.data);
-      const data = response.data;
-      
-      // Map the API data to include static values for visualization
-      const mappedSatellites = data.map((satellite: any) => ({
-        ...satellite,
-        type: "Earth Observation",
-        status: "Active",
-        altitude: "400 km",
-        orbitType: "Low Earth Orbit",
-      }));
-      
-      console.log('Mapped satellites:', mappedSatellites);
-      
-      // Update cache and localStorage
-      satelliteCache.set(userEmail, {
-        data: mappedSatellites,
-        timestamp: now
-      });
-      saveSatellitesToStorage(mappedSatellites);
-      
-      // Only update if the data is different
-      setSatellites(prev => {
-        if (JSON.stringify(prev) !== JSON.stringify(mappedSatellites)) {
-          return mappedSatellites;
-        }
-        return prev;
-      });
-    } catch (err) {
-      console.error('Error details:', err);
-      // Try to load from localStorage on error
-      const storedSatellites = loadSatellitesFromStorage();
-      if (storedSatellites) {
-        setSatellites(storedSatellites);
-      }
-      
-      if (axios.isAxiosError(err)) {
-        console.error('Axios error:', {
-          status: err.response?.status,
-          statusText: err.response?.statusText,
-          data: err.response?.data,
-          message: err.message
-        });
-        if (err.code === 'ECONNABORTED' || err.name === 'AbortError') {
-          setError("Request timed out. Please try again.");
-        } else if (err.response?.status === 404) {
-          setSatellites([]);
-          setError("No satellites found for this user");
-        } else {
-          setError(err.response?.data?.error || "Failed to load tracked satellites");
-        }
-      } else {
-        setError("An unexpected error occurred");
-      }
-      
-      toast({
-        title: "Error",
-        description: error || "Failed to load tracked satellites",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [loadSatellitesFromStorage, saveSatellitesToStorage]);
-
-  // Add useEffect to fetch satellites when component mounts
-  useEffect(() => {
-    const token = Cookies.get('token');
-    if (token) {
-      fetchTrackedSatellites();
-    }
-  }, [fetchTrackedSatellites]);
-
-  // Load satellites from localStorage on initial mount
-  useEffect(() => {
-    const storedSatellites = loadSatellitesFromStorage();
-    if (storedSatellites) {
-      setSatellites(storedSatellites);
-    }
-  }, [loadSatellitesFromStorage]);
-
   // Compute unique values for key filter fields
-  const availableTypes = useMemo(() => Array.from(new Set(satellites.map(s => s.type).filter(Boolean))), [satellites]);
-  const availableStatuses = useMemo(() => Array.from(new Set(satellites.map(s => s.status).filter(Boolean))), [satellites]);
-  const availableOwners = useMemo(() => Array.from(new Set(satellites.map(s => s.owner).filter(Boolean))), [satellites]);
-  const availableOrbitTypes = useMemo(() => Array.from(new Set(satellites.map(s => s.orbitType).filter(Boolean))), [satellites]);
-  const availableLaunchSites = useMemo(() => Array.from(new Set(satellites.map(s => s.launchSite).filter(Boolean))), [satellites]);
+  const availableTypes = useMemo(() => {
+    if (!satellites) return [];
+    return Array.from(new Set(satellites.map(s => s.type).filter(Boolean)));
+  }, [satellites]);
+
+  const availableStatuses = useMemo(() => {
+    if (!satellites) return [];
+    return Array.from(new Set(satellites.map(s => s.status).filter(Boolean)));
+  }, [satellites]);
+
+  const availableOwners = useMemo(() => {
+    if (!satellites) return [];
+    return Array.from(new Set(satellites.map(s => s.owner).filter(Boolean)));
+  }, [satellites]);
+
+  const availableOrbitTypes = useMemo(() => {
+    if (!satellites) return [];
+    return Array.from(new Set(satellites.map(s => s.orbitType).filter(Boolean)));
+  }, [satellites]);
+
+  const availableLaunchSites = useMemo(() => {
+    if (!satellites) return [];
+    return Array.from(new Set(satellites.map(s => s.launchSite).filter(Boolean)));
+  }, [satellites]);
 
   // Memoize filtered satellites
   const filteredSatellites = useMemo(() => {
-    let filtered = satellites
+    if (!satellites) return [];
+    let filtered = satellites;
 
     if (searchQuery) {
       filtered = filtered.filter(
@@ -449,17 +340,11 @@ export default React.memo(function SatellitesPage() {
   }, [])
 
   const handleAddSatellites = useCallback((newSatellites: Satellite[]) => {
-    setSatellites(prev => {
-      // Filter out any duplicates
-      const existingIds = new Set(prev.map(s => s.id));
-      const uniqueNewSatellites = newSatellites.filter(s => !existingIds.has(s.id));
-      return [...prev, ...uniqueNewSatellites];
-    });
-    toast({
-      title: "Success",
-      description: `Added ${newSatellites.length} satellite(s) to track`,
-    });
+    // This function is no longer used as the satellites are managed by the useTrackedSatellites hook
   }, []);
+
+  // In the error display section, convert Error to string
+  const errorMessage = error instanceof Error ? error.message : String(error);
 
   return (
     <TooltipProvider>
@@ -470,14 +355,14 @@ export default React.memo(function SatellitesPage() {
           <header className="app-header border-b border-[#1e2a41]">
             <div className="flex h-16 items-center px-4">
               <Link href="/" className="flex items-center mr-8">
-                <motion.div
+                <MotionDiv
                   className="w-8 h-8 bg-white rounded mr-2 flex items-center justify-center"
                   whileHover={{ rotate: 180 }}
                   transition={{ duration: 0.5 }}
                 >
                   <div className="w-4 h-4 bg-[#0a101c]"></div>
-                </motion.div>
-                <span className="font-bold text-lg gradient-text">Space Tracker</span>
+                </MotionDiv>
+                <span className="font-bold text-lg gradient-text">Orbital</span>
               </Link>
               <MainNav />
               <div className="ml-auto flex items-center space-x-4">
@@ -511,28 +396,28 @@ export default React.memo(function SatellitesPage() {
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className="w-8 h-8 rounded-full flex items-center justify-center bg-[#1a2234] text-gray-400 hover:text-white transition-colors"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleSearchClick}
                     >
                       {isSearchExpanded ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent>{isSearchExpanded ? "Close search" : "Search satellites"}</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className={`w-8 h-8 rounded-full flex items-center justify-center ${isFilterOpen ? "bg-[#3b82f6] text-white" : "bg-[#1a2234] text-gray-400 hover:text-white"} transition-colors`}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleFilterToggle}
                     >
                       <Filter className="h-4 w-4" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent>Filter satellites</TooltipContent>
                 </Tooltip>
@@ -556,14 +441,14 @@ export default React.memo(function SatellitesPage() {
                 <h2 className="text-2xl font-bold fancy-title">Tracked Satellites</h2>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className="w-8 h-8 rounded-full flex items-center justify-center bg-[#1a2234] text-gray-400 hover:text-white transition-colors"
                       whileHover={{ scale: 1.1, rotate: 90 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setIsAddModalOpen(true)}
                     >
                       <Plus className="h-4 w-4" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent>Add new satellite</TooltipContent>
                 </Tooltip>
@@ -666,12 +551,12 @@ export default React.memo(function SatellitesPage() {
               ) : error ? (
                 <div className="flex flex-col items-center justify-center py-8 text-center">
                   <Satellite className="h-12 w-12 text-gray-500 mb-3" />
-                  <p className="text-gray-400">{error}</p>
+                  <p className="text-gray-400">{errorMessage}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     className="mt-4"
-                    onClick={fetchTrackedSatellites}
+                    onClick={refreshSatellites}
                   >
                     Retry
                   </Button>
@@ -742,56 +627,56 @@ export default React.memo(function SatellitesPage() {
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className="earth-control-button"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleZoomIn}
                     >
                       <Plus className="h-5 w-5" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent side="left">Zoom in</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className="earth-control-button"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleZoomOut}
                     >
                       <Minus className="h-5 w-5" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent side="left">Zoom out</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className="earth-control-button"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleResetView}
                     >
                       <Navigation className="h-5 w-5" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent side="left">Reset view</TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <motion.button
+                    <MotionButton
                       className={`earth-control-button ${isAutoRotate ? "border-blue-500" : ""}`}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleToggleRotation}
                     >
                       <RotateCcw className="h-5 w-5" />
-                    </motion.button>
+                    </MotionButton>
                   </TooltipTrigger>
                   <TooltipContent side="left">{isAutoRotate ? "Stop rotation" : "Start rotation"}</TooltipContent>
                 </Tooltip>
@@ -851,6 +736,16 @@ export default React.memo(function SatellitesPage() {
             />
           )}
         </AnimatePresence>
+
+        {/* Refresh Button */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="ml-2"
+          onClick={handleRefresh}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </Button>
       </div>
     </TooltipProvider>
   )

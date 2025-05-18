@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
 import { motion, HTMLMotionProps } from "framer-motion"
+import type { MotionProps } from "framer-motion"
 import {
   AlertTriangle,
   Battery,
@@ -50,11 +51,25 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { LineChart } from "@/components/line-chart"
 import { MainNav } from "@/components/main-nav"
-import { UserNav } from "@/components/user-nav";
-import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth';
+import { UserNav } from "@/components/user-nav"
+import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth'
 import { cn } from "@/lib/utils"
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSatellites } from "@/hooks/useSatellites"
+import dynamic from 'next/dynamic'
+import { MotionDiv } from "@/components/ui/motion"
+import HealthMonitoringLoading from "./loading"
+import { useHealthData } from "@/hooks/useHealthData"
+
+// Dynamically import heavy components with loading states
+const DetailedMetricDialog = dynamic(() => import("@/components/detailed-metric-dialog"), {
+  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="bg-[#1a2234] rounded-lg p-6">
+      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    </div>
+  </div>,
+  ssr: false
+})
 
 type MetricStatus = 'normal' | 'warning' | 'critical';
 type AlertSeverity = 'info' | 'warning' | 'critical';
@@ -95,13 +110,6 @@ interface MetricCardProps {
 interface SparklineProps {
   data: (number | string)[];
   status: MetricStatus;
-}
-
-interface DetailedMetricDialogProps {
-  metricKey: string;
-  metric: Metric;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
 }
 
 type TimeRangeOption = "1h" | "24h" | "7d" | "30d";
@@ -357,279 +365,6 @@ const MetricCard = ({ metricKey, metric, onClick }: MetricCardProps) => {
   );
 };
 
-// Detailed Metric Dialog component
-const DetailedMetricDialog = ({ metricKey, metric, open, onOpenChange }: DetailedMetricDialogProps) => {
-  const [timeRange, setTimeRange] = useState<TimeRangeOption>("1h");
-  const [historicalData, setHistoricalData] = useState<{ 
-    labels: string[], 
-    data: number[],
-    availableRanges?: AvailableRanges
-  }>({ labels: [], data: [] });
-  const [isLoading, setIsLoading] = useState(false);
-
-  const shouldShowGraph = metricKey !== 'time_since_launch';
-
-  const timeRangeOptions: Array<{ value: TimeRangeOption; label: string }> = [
-    { value: "1h", label: "Last Hour" },
-    { value: "24h", label: "Last 24 Hours" },
-    { value: "7d", label: "Last 7 Days" },
-    { value: "30d", label: "Last 30 Days" }
-  ];
-
-  // Set initial time range based on available data
-  useEffect(() => {
-    if (historicalData.availableRanges) {
-      const ranges: TimeRangeOption[] = ["30d", "7d", "24h", "1h"];
-      const firstAvailableRange = ranges.find(range => historicalData.availableRanges?.[range]);
-      if (firstAvailableRange && firstAvailableRange !== timeRange) {
-        setTimeRange(firstAvailableRange);
-      }
-    }
-  }, [historicalData.availableRanges]);
-
-  useEffect(() => {
-    const fetchHistoricalData = async () => {
-      setIsLoading(true);
-      try {
-        console.log(`Fetching historical data for ${metricKey} with range ${timeRange}`);
-        const response = await getHistoricalHealthData(48272, metricKey, timeRange);
-        
-        // Transform the API response into chart data
-        const labels = response.timestamps.map((timestamp: string) => 
-          format(new Date(timestamp), 
-            timeRange === "1h" || timeRange === "24h" ? "HH:mm" : "MMM dd")
-        );
-        
-        console.log('Processed historical data:', {
-          timestamps: response.timestamps.length,
-          values: response.values.length,
-          labels: labels.length,
-          availableRanges: response.availableRanges,
-          sampleData: response.values.slice(0, 3)
-        });
-
-        setHistoricalData({
-          labels,
-          data: response.values,
-          availableRanges: response.availableRanges
-        });
-      } catch (error) {
-        console.error('Failed to fetch historical data:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load historical data. Please try again later.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (open) {
-      fetchHistoricalData();
-    }
-  }, [timeRange, metricKey, open]);
-
-  const chartData = {
-    labels: historicalData.labels,
-    datasets: [
-      {
-        label: formatMetricName(metricKey),
-        data: historicalData.data,
-        borderColor:
-          metric.status === "critical"
-            ? "#F87171"
-            : metric.status === "warning"
-              ? "#FBBF24"
-              : "#34D399",
-        backgroundColor:
-          metric.status === "critical"
-            ? "rgba(248, 113, 113, 0.1)"
-            : metric.status === "warning"
-              ? "rgba(251, 191, 36, 0.1)"
-              : "rgba(52, 211, 153, 0.1)",
-      },
-    ],
-  };
-
-  console.log('Rendering graph with data:', {
-    hasData: historicalData.data.length > 0,
-    dataLength: historicalData.data.length,
-    isLoading,
-    timeRange,
-    chartData
-  });
-
-  const handleDownload = () => {
-    try {
-      // Create CSV content with proper date formatting
-      const csvRows = [
-        ['Timestamp', formatMetricName(metricKey)],
-        ...historicalData.labels.map((label, index) => [
-          new Date(historicalData.data[index]).toISOString(),
-          historicalData.data[index].toString()
-        ])
-      ];
-      
-      const csvContent = csvRows.map(row => row.join(',')).join('\n');
-      
-      // Create blob and download
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${formatMetricName(metricKey)}_${timeRange}_${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: "Download Complete",
-        description: `Historical data for ${formatMetricName(metricKey)} has been downloaded.`,
-      });
-    } catch (error) {
-      console.error('Failed to download data:', error);
-      toast({
-        title: "Download Failed",
-        description: "Failed to download the data. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-auto">
-        <DialogHeader>
-          <div className="flex items-center gap-2">
-            {getMetricIcon(metricKey)}
-            <DialogTitle>{formatMetricName(metricKey)}</DialogTitle>
-          </div>
-          <DialogDescription>Historical data and analysis for {satelliteData.name}</DialogDescription>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-2xl font-bold">
-              {typeof metric.value === "number" ? metric.value.toFixed(2) : metric.value}
-              {metric.unit && <span className="ml-1 text-sm">{metric.unit}</span>}
-            </div>
-            <Badge variant={getBadgeVariant(metric.status)}>{metric.status.toUpperCase()}</Badge>
-          </div>
-
-          {shouldShowGraph && (
-            <>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">Select time range:</div>
-                <Select 
-                  value={timeRange} 
-                  onValueChange={(value: TimeRangeOption) => setTimeRange(value)}
-                >
-                  <SelectTrigger className="w-[120px]">
-                    <SelectValue placeholder="Time Range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeRangeOptions.map(option => (
-                      <SelectItem
-                        key={option.value}
-                        value={option.value}
-                        disabled={!historicalData.availableRanges?.[option.value]}
-                      >
-                        {option.label}
-                        {historicalData.availableRanges && !historicalData.availableRanges[option.value] && 
-                          " (No data)"}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="h-[300px] w-full relative">
-                {isLoading ? (
-                  <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full"></div>
-                  </div>
-                ) : historicalData.data.length > 0 ? (
-                  <LineChart data={chartData} />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <p className="text-muted-foreground">
-                      {historicalData.availableRanges?.[timeRange] 
-                        ? "No data points available for this time range" 
-                        : "Selected time range is not available"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {metric.thresholds && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Thresholds</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(metric.thresholds).map(([level, range]) => (
-                    <div key={level} className="flex items-center justify-between">
-                      <div className="capitalize">{level}:</div>
-                      <div className={`font-mono ${getStatusColor(level as MetricStatus)}`}>
-                        {range[0]} - {range[1]} {metric.unit}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">About this Metric</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {metricKey === "time_since_launch" &&
-                  "Time Since Launch indicates how long the satellite has been operational in space. This helps track the satellite's age relative to its expected mission lifetime."}
-                {metricKey === "orbital_altitude" &&
-                  "Orbital Altitude represents the satellite's height above Earth's surface. Maintaining the correct altitude is crucial for the satellite's mission and orbital stability."}
-                {metricKey === "battery_voltage" &&
-                  "Battery Voltage indicates the electrical potential of the satellite's power system. Proper voltage levels ensure all systems receive adequate power for operation."}
-                {metricKey === "solar_panel_temperature" &&
-                  "Solar Panel Temperature measures how hot the satellite's solar arrays are. Excessive temperatures can reduce efficiency and potentially damage the panels."}
-                {metricKey === "attitude_control_error" &&
-                  "Attitude Control Error shows the deviation from the satellite's desired orientation. Precise attitude control is essential for instrument pointing, communication, and solar panel alignment."}
-                {metricKey === "data_transmission_rate" &&
-                  "Data Transmission Rate indicates how quickly the satellite can send information back to Earth. Higher rates allow for more data collection and transmission."}
-                {metricKey === "thermal_control_status" &&
-                  "Thermal Control Status shows the current state of the satellite's temperature management system. Proper thermal control prevents components from overheating or becoming too cold."}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <DialogFooter>
-          {shouldShowGraph && (
-            <Button 
-              variant="outline" 
-              onClick={handleDownload}
-              disabled={historicalData.data.length === 0}
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Download Data
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
 // Helper function to format time since launch
 const formatTimeSinceLaunch = (days: number): string => {
   const years = Math.floor(days / 365);
@@ -667,131 +402,35 @@ const getStatus = (
   return 'normal';
 };
 
-// Add type for motion components
-type MotionDivProps = HTMLMotionProps<"div">;
-
 export default function HealthMonitoringPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [satelliteSearch, setSatelliteSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("all");
-  const [satellitePrimaryData, setSatellitePrimaryData] = useState<SatelliteData | null>(null)
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
   const [detailedMetricOpen, setDetailedMetricOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [realTimeUpdates, setRealTimeUpdates] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(new Date())
-  const [overallHealth, setOverallHealth] = useState<number>(100)
 
-  // Replace the satellites state with our custom hook
-  const { 
-    satellites, 
-    isLoading: isLoadingSatellites, 
-    error: satellitesError,
-    uniqueOwners 
-  } = useSatellites();
+  const { data: healthData, isLoading: isLoadingHealth, error: healthError, lastUpdated: healthLastUpdated, refresh } = useHealthData(Number(searchParams?.get('norad_id')) || 48272)
+  const { satellites, isLoading: isLoadingSatellites, error: satellitesError, uniqueOwners } = useSatellites()
 
   // Memoize filtered satellites based on search and owner filter
   const filteredSatellites = useMemo(() => {
     return satellites.filter(sat => {
       const matchesSearch = sat.name.toLowerCase().includes(satelliteSearch.toLowerCase()) ||
-                          sat.norad_id.toString().includes(satelliteSearch);
-      const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter;
-      return matchesSearch && matchesOwner;
-    });
-  }, [satellites, satelliteSearch, ownerFilter]);
-
-  // Update parameter name to match API routes
-  const norad_id = Number(searchParams?.get('norad_id')) || 48272;
+                          sat.norad_id.toString().includes(satelliteSearch)
+      const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter
+      return matchesSearch && matchesOwner
+    })
+  }, [satellites, satelliteSearch, ownerFilter])
 
   // Update the satellite selection handler
   const handleSatelliteSelect = (selectedNoradId: number) => {
     router.push(`/health-monitoring?norad_id=${selectedNoradId}`);
   };
-
-  // Update the data fetching effect
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const raw = await getLatestHealthStatus(norad_id);
-        console.log('data : ', raw);
-        const transformed: SatelliteData = {
-          id: raw.noradId,
-          name: raw.satelliteName,
-          timestamp: raw.timestamp,
-          prediction: raw.prediction,
-          probability: raw.probability,
-          metrics: {
-            time_since_launch: {
-              value: formatTimeSinceLaunch(raw.timeSinceLaunch),
-              days: raw.timeSinceLaunch,
-              status: "normal" as MetricStatus,
-              history: generateMockHistory(raw.timeSinceLaunch, 7, 0.001)
-            },
-            orbital_altitude: {
-              value: raw.orbitalAltitude,
-              unit: "km",
-              status: "normal" as MetricStatus,
-              history: generateMockHistory(raw.orbitalAltitude)
-            },
-            battery_voltage: {
-              value: raw.batteryVoltage,
-              unit: "V",
-              status: getStatus(raw.batteryVoltage, { normal: [26, 30], warning: [24, 26], critical: [0, 24] }) as MetricStatus,
-              thresholds: { normal: [26, 30], warning: [24, 26], critical: [0, 24] },
-              history: generateMockHistory(raw.batteryVoltage)
-            },
-            solar_panel_temperature: {
-              value: raw.solarPanelTemperature,
-              unit: "°C",
-              status: getStatus(raw.solarPanelTemperature, { normal: [0, 50], warning: [50, 70], critical: [70, 100] }) as MetricStatus,
-              thresholds: { normal: [0, 50], warning: [50, 70], critical: [70, 100] },
-              history: generateMockHistory(raw.solarPanelTemperature)
-            },
-            attitude_control_error: {
-              value: raw.attitudeControlError,
-              unit: "°",
-              status: getStatus(raw.attitudeControlError, { normal: [0, 0.05], warning: [0.05, 0.1], critical: [0.1, 1] }) as MetricStatus,
-              thresholds: { normal: [0, 0.05], warning: [0.05, 0.1], critical: [0.1, 1] },
-              history: generateMockHistory(raw.attitudeControlError)
-            },
-            data_transmission_rate: {
-              value: raw.dataTransmissionRate,
-              unit: "Mbps",
-              status: "normal" as MetricStatus,
-              trend: "stable" as TrendDirection,
-              history: generateMockHistory(raw.dataTransmissionRate)
-            },
-            thermal_control_status: {
-              value: raw.thermalControlStatus === 1 ? "NORMAL" : "OVERHEATING",
-              status: raw.thermalControlStatus === 1 ? "normal" as MetricStatus : "warning" as MetricStatus,
-              history: Array(7).fill(raw.thermalControlStatus === 1 ? "NORMAL" : "OVERHEATING")
-            }
-          }
-        };
-        
-        setSatellitePrimaryData(transformed);
-        setLastUpdated(new Date());
-      } catch (err) {
-        console.error('Failed to fetch satellite health:', err);
-      }
-    };
-
-    fetchData();
-    const interval = setInterval(fetchData, 3600000); // every hour
-
-    return () => clearInterval(interval);
-  }, [norad_id]);
-
-  // Calculate overall health percentage when data changes
-  useEffect(() => {
-    if (!satellitePrimaryData) return;
-    const metrics = Object.values(satellitePrimaryData.metrics);
-    const normalCount = metrics.filter((m) => m.status === "normal").length;
-    const percentage = Math.round((normalCount / metrics.length) * 100);
-    setOverallHealth(percentage);
-  }, [satellitePrimaryData]);
 
   // Simulate real-time updates (UI only)
   useEffect(() => {
@@ -822,18 +461,35 @@ export default function HealthMonitoringPage() {
     })
   }
 
-  // GUARD: Wait for data to load
-  if (!satellitePrimaryData) {
+  if (isLoadingHealth || isLoadingSatellites) {
+    return <HealthMonitoringLoading />
+  }
+
+  if (healthError || satellitesError) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white">
-        <div className="animate-spin h-12 w-12 mb-4 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-        <h2 className="text-lg">Loading satellite health data...</h2>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white p-6">
+        <div className="text-red-400 mb-4">
+          {healthError || satellitesError}
+        </div>
+        <Button onClick={() => window.location.reload()}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  if (!healthData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white p-6">
+        <div className="text-gray-400 mb-4">
+          No health data available
+        </div>
       </div>
     )
   }
 
   // Filter metrics based on search and status filter, excluding time_since_launch from the grid
-  const filteredMetrics = Object.entries(satellitePrimaryData.metrics).filter(([key, metric]) => {
+  const filteredMetrics = Object.entries(healthData.metrics).filter(([key, metric]) => {
     const matchesSearch = formatMetricName(key).toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || metric.status === statusFilter;
     const isNotTimeSinceLaunch = key !== 'time_since_launch';
@@ -846,14 +502,14 @@ export default function HealthMonitoringPage() {
       <header className="app-header border-b border-[#1e2a41]">
         <div className="flex h-16 items-center px-4">
           <Link href="/" className="flex items-center mr-8">
-            <motion.div
+            <MotionDiv
               className="w-8 h-8 bg-white rounded mr-2 flex items-center justify-center"
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
               style={{ display: 'flex' }}
             >
               <div className="w-4 h-4 bg-[#0f1520]"></div>
-            </motion.div>
+            </MotionDiv>
             <span className="font-bold text-lg gradient-text">Orbital</span>
           </Link>
           <MainNav />
@@ -862,7 +518,7 @@ export default function HealthMonitoringPage() {
           <div className="flex-1 flex items-center justify-end space-x-4">
             <div className="w-[300px]">
               <Select
-                value={norad_id.toString()}
+                value={searchParams?.get('norad_id') || ''}
                 onValueChange={(value) => handleSatelliteSelect(Number(value))}
               >
                 <SelectTrigger className="bg-[#1e2a41] border-none">
@@ -941,172 +597,149 @@ export default function HealthMonitoringPage() {
 
       {/* Main content */}
       <main className="flex-1 p-6">
-        <motion.div
-          className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          style={{ display: 'flex' }}
-        >
-          <div>
-            <h1 className="text-3xl font-bold fancy-title">Satellite Health Monitoring Dashboard</h1>
-            <p className="text-gray-400 mt-1">
-              Real-time monitoring of satellite health metrics to ensure optimal performance and early issue detection.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-            <div className="flex items-center gap-2">
-              <Satellite className="h-5 w-5 text-blue-400" />
-              <div>
-                <div className="text-sm text-gray-400">Satellite</div>
-                <div className="font-medium">{satellitePrimaryData.name}</div>
-              </div>
+        <Suspense fallback={<HealthMonitoringLoading />}>
+          <MotionDiv
+            className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            style={{ display: 'flex' }}
+          >
+            <div>
+              <h1 className="text-3xl font-bold fancy-title">Satellite Health Monitoring Dashboard</h1>
+              <p className="text-gray-400 mt-1">
+                Real-time monitoring of satellite health metrics to ensure optimal performance and early issue detection.
+              </p>
             </div>
-            <div className="h-8 w-px bg-gray-700 hidden sm:block"></div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-blue-400" />
-              <div>
-                <div className="text-sm text-gray-400">Last Updated</div>
-                <div className="font-medium">{new Date(satellitePrimaryData.timestamp).toLocaleTimeString()}</div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Summary Cards - now with 4 cards */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          style={{ display: 'grid' }}
-        >
-          {/* Health Status Card */}
-          <Card className={cn(
-            "overflow-hidden border-l-4",
-            satellitePrimaryData.prediction === 1 ? "border-l-green-500" : "border-l-red-500"
-          )}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Health Status</CardTitle>
-              <div className={cn(
-                "rounded-full p-1",
-                satellitePrimaryData.prediction === 1 
-                  ? "bg-green-100 dark:bg-green-900/20" 
-                  : "bg-red-100 dark:bg-red-900/20"
-              )}>
-                <Zap className={cn(
-                  "h-4 w-4",
-                  satellitePrimaryData.prediction === 1 ? "text-green-500" : "text-red-500"
-                )} />
-              </div>
-            </CardHeader>
-            <CardContent>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
               <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">
-                  {satellitePrimaryData.prediction === 1 ? "Healthy" : "Attention Needed"}
+                <Satellite className="h-5 w-5 text-blue-400" />
+                <div>
+                  <div className="text-sm text-gray-400">Satellite</div>
+                  <div className="font-medium">{healthData.name}</div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Time Since Launch Card */}
-          <Card className="overflow-hidden border-l-4 border-l-blue-500">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Time Since Launch</CardTitle>
-              <div className="rounded-full bg-blue-100 p-1 dark:bg-blue-900/20">
-                <Rocket className="h-4 w-4 text-blue-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {satellitePrimaryData.metrics.time_since_launch.value}
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                Total Days: {satellitePrimaryData.metrics.time_since_launch.days ?? 0}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Overall Health Card */}
-          <Card className="overflow-hidden border-l-4 border-l-blue-500">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Overall Health</CardTitle>
-              <div className="rounded-full bg-blue-100 p-1 dark:bg-blue-900/20">
-                <Activity className="h-4 w-4 text-blue-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
+              <div className="h-8 w-px bg-gray-700 hidden sm:block"></div>
               <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">{overallHealth}%</div>
-                <Progress value={overallHealth} className="flex-1" />
-              </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                {overallHealth >= 90
-                  ? "Excellent condition"
-                  : overallHealth >= 75
-                    ? "Good condition"
-                    : overallHealth >= 50
-                      ? "Fair condition"
-                      : "Needs attention"}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* New Confidence Level Card */}
-          <Card className="overflow-hidden border-l-4 border-l-purple-500">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Confidence Level</CardTitle>
-              <div className="rounded-full bg-purple-100 p-1 dark:bg-purple-900/20">
-                <Signal className="h-4 w-4 text-purple-500" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold">
-                  {Math.max(0, Math.min(100, (satellitePrimaryData.probability * 100) - 2)).toFixed(1)}%
+                <Clock className="h-5 w-5 text-blue-400" />
+                <div>
+                  <div className="text-sm text-gray-400">Last Updated</div>
+                  <div className="font-medium">{new Date(healthData.timestamp).toLocaleTimeString()}</div>
                 </div>
-                <Progress 
-                  value={Math.max(0, Math.min(100, (satellitePrimaryData.probability * 100) - 2))} 
-                  className="flex-1" 
-                />
               </div>
-              <div className="text-xs text-muted-foreground mt-2">
-                Prediction confidence level
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Metrics Grid */}
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          style={{ display: 'grid' }}
-        >
-          {filteredMetrics.length > 0 ? (
-            filteredMetrics.map(([key, metric]) => (
-              <MetricCard key={key} metricKey={key} metric={metric} onClick={handleMetricClick} />
-            ))
-          ) : (
-            <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-              <Search className="h-12 w-12 text-gray-500 mb-4" />
-              <h3 className="text-lg font-medium">No metrics found</h3>
-              <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
-              <Button variant="outline" className="mt-4" onClick={handleResetFilters}>
-                Reset Filters
-              </Button>
             </div>
-          )}
-        </motion.div>
+          </MotionDiv>
+
+          {/* Summary Cards - now with 4 cards */}
+          <MotionDiv
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            style={{ display: 'grid' }}
+          >
+            {/* Health Status Card */}
+            <Card className={cn(
+              "overflow-hidden border-l-4",
+              healthData.prediction === 1 ? "border-l-green-500" : "border-l-red-500"
+            )}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Health Status</CardTitle>
+                <div className={cn(
+                  "rounded-full p-1",
+                  healthData.prediction === 1 
+                    ? "bg-green-100 dark:bg-green-900/20" 
+                    : "bg-red-100 dark:bg-red-900/20"
+                )}>
+                  <Zap className={cn(
+                    "h-4 w-4",
+                    healthData.prediction === 1 ? "text-green-500" : "text-red-500"
+                  )} />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-bold">
+                    {healthData.prediction === 1 ? "Healthy" : "Attention Needed"}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Time Since Launch Card */}
+            <Card className="overflow-hidden border-l-4 border-l-blue-500">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Time Since Launch</CardTitle>
+                <div className="rounded-full bg-blue-100 p-1 dark:bg-blue-900/20">
+                  <Rocket className="h-4 w-4 text-blue-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {healthData.metrics.time_since_launch.value}
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Total Days: {healthData.metrics.time_since_launch.days ?? 0}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* New Confidence Level Card */}
+            <Card className="overflow-hidden border-l-4 border-l-purple-500">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Confidence Level</CardTitle>
+                <div className="rounded-full bg-purple-100 p-1 dark:bg-purple-900/20">
+                  <Signal className="h-4 w-4 text-purple-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <div className="text-2xl font-bold">
+                    {Math.max(0, Math.min(100, (healthData.probability * 100) - 2)).toFixed(1)}%
+                  </div>
+                  <Progress 
+                    value={Math.max(0, Math.min(100, (healthData.probability * 100) - 2))} 
+                    className="flex-1" 
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Prediction confidence level
+                </div>
+              </CardContent>
+            </Card>
+          </MotionDiv>
+
+          {/* Metrics Grid */}
+          <MotionDiv
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            style={{ display: 'grid' }}
+          >
+            {filteredMetrics.length > 0 ? (
+              filteredMetrics.map(([key, metric]) => (
+                <MetricCard key={key} metricKey={key} metric={metric} onClick={handleMetricClick} />
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                <Search className="h-12 w-12 text-gray-500 mb-4" />
+                <h3 className="text-lg font-medium">No metrics found</h3>
+                <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
+                <Button variant="outline" className="mt-4" onClick={handleResetFilters}>
+                  Reset Filters
+                </Button>
+              </div>
+            )}
+          </MotionDiv>
+        </Suspense>
       </main>
 
       {/* Detailed Metric Dialog */}
-      {selectedMetric && satellitePrimaryData?.metrics[selectedMetric] && (
+      {selectedMetric && healthData?.metrics[selectedMetric] && (
         <DetailedMetricDialog
           metricKey={selectedMetric}
-          metric={satellitePrimaryData.metrics[selectedMetric]}
+          metric={healthData.metrics[selectedMetric]}
           open={detailedMetricOpen}
           onOpenChange={setDetailedMetricOpen}
         />
