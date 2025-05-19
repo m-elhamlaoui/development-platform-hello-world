@@ -4,8 +4,12 @@ import lombok.AllArgsConstructor;
 import net.bouraoui.fetchingdata.Entities.Satellite;
 import net.bouraoui.fetchingdata.Repositories.SatelliteRepository;
 import net.bouraoui.fetchingdata.Services.Interfaces.SatelliteService;
+<<<<<<< HEAD
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+=======
+import org.springframework.beans.factory.annotation.Autowired;
+>>>>>>> 03f9b3e9c4c771381a3e344a65efe4600ec753ed
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,8 +17,8 @@ import java.util.List;
 @Service
 @AllArgsConstructor
 public class SatelliteServiceImpl implements SatelliteService {
-
-    private final SatelliteRepository satelliteRepository;
+    @Autowired
+    private SatelliteRepository satelliteRepository;
 
     @Override
     public List<Satellite> getTop30SatellitesPrioritized() {

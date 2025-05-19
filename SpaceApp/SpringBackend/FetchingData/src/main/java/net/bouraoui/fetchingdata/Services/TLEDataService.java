@@ -15,7 +15,7 @@ import java.util.Optional;
 
 public class TLEDataService {
 
-    private static final String API_URL = "https://api.n2yo.com/rest/v1/satellite/tle/{satelliteId}&apiKey=ZJCQA5-N8HHGU-X365EG-5GCX";
+    private static final String API_URL = "https://api.n2yo.com/rest/v1/satellite/tle/{satelliteId}&apiKey=ST8DZ8-AAVC2J-8QR7CC-5H4M";
 
     @Autowired
     private RestTemplate restTemplate;
