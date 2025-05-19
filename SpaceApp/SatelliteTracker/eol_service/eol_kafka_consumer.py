@@ -16,26 +16,25 @@ def extract_features(data):
     Returns a NumPy array shaped for model input.
     """
     features = [
-        data.get("eccentricity", 0.0),
-        data.get("orbital_velocity_approx", 0.0),
-        data.get("raan", 0.0),
-        data.get("collision_warning", 0),
         data.get("orbital_altitude", 0.0),
-        data.get("line1_epoch", 0.0),
+        data.get("orbital_velocity_approx", 0.0),
+        data.get("collisionWarning", 0),
+        data.get("eccentricity", 0.0),
+        data.get("mean_motion", 0.0),
         data.get("motion_launch_interaction", 0.0),
-        data.get("mean_motion", 0.0)
+        data.get("raan", 0.0),
+        data.get("line1_epoch", 0.0)
     ]
     features_array = np.array([features])  # 2D array for model.predict
     print("🧪 Extracted features:", features_array)
     return features_array
 
-def send_prediction_to_kafka(satellite_id,satelliteName, norad_id, prediction, features):
+def send_prediction_to_kafka(satellite_id, norad_id, prediction, features):
     """
     Sends prediction + flat features as JSON to the 'eol_predictions' Kafka topic.
     """
     prediction_data = {
         "satellite_id": satellite_id,
-        "satellite_name": satelliteName,
         "norad_id": norad_id,
         "prediction": float(prediction),
         "eccentricity": features[0],
@@ -85,7 +84,6 @@ def start_kafka_consumer():
                 # Send prediction + flat features
                 send_prediction_to_kafka(
                     data.get("satellite_id"),
-                    data.get("satellite_name"),
                     data.get("norad_id"),
                     prediction[0],
                     features_array[0]

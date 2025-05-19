@@ -80,6 +80,9 @@ public class KafkaConsumerService {
             double mean_motion = Double.parseDouble(tleLine2.substring(52, 63).trim());
 
             double orbitalPeriod = 86400 / mean_motion;
+            /*double r = EARTH_RADIUS + orbital_altitude;
+            double orbital_velocity_approx = Math.sqrt(MU_EARTH / r);
+*/
 
             double orbital_velocity_approx = 5000 / orbital_altitude;
             double motion_launch_interaction = mean_motion * timeSinceLaunch;
