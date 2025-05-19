@@ -46,7 +46,9 @@ public class ScheduledTask {
         //Integer[] satelliteIds = {4000, 5000};
         System.out.println("the length of satellite +"+cachedSatellites.size());
         for (var satellite : cachedSatellites) {
+
             // we will use norad_id as satellite id
+
             Integer satelliteId = satellite.getNorad_id();
             String tleData = tleDataService.fetchAndSaveTLEData(satelliteId);
             System.out.println("tle data: "+tleData);

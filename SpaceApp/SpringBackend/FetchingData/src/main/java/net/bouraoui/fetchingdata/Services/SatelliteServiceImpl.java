@@ -4,8 +4,12 @@ import lombok.AllArgsConstructor;
 import net.bouraoui.fetchingdata.Entities.Satellite;
 import net.bouraoui.fetchingdata.Repositories.SatelliteRepository;
 import net.bouraoui.fetchingdata.Services.Interfaces.SatelliteService;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
