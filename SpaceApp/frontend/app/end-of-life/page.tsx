@@ -63,6 +63,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart } from "@/components/line-chart"
+import { useTrackedSatellites } from "@/contexts/TrackedSatellitesContext"
 
 interface Satellite {
   id: string;
@@ -169,9 +170,7 @@ interface DisposalOption {
 export default function EndOfLifePage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [lastUpdated, setLastUpdated] = useState(new Date())
-  const [isLoading, setIsLoading] = useState(false)
   const [selectedSatellite, setSelectedSatellite] = useState("")
-  const [satellites, setSatellites] = useState<Satellite[]>([])
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [eolStatus, setEolStatus] = useState<EolStatus | null>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
@@ -179,10 +178,16 @@ export default function EndOfLifePage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [timeline, setTimeline] = useState<Timeline | null>(null)
   const [disposalOptions, setDisposalOptions] = useState<DisposalOption[]>([])
+  
+  const { satellites, isLoading: isSatellitesLoading, error: satellitesError, refreshSatellites } = useTrackedSatellites()
+  const [isDataLoading, setIsDataLoading] = useState(false)
+  const isLoading = isSatellitesLoading || isDataLoading
 
   useEffect(() => {
-    fetchSatellites()
-  }, [])
+    if (satellites && satellites.length > 0 && !selectedSatellite) {
+      setSelectedSatellite(satellites[0].id)
+    }
+  }, [satellites, selectedSatellite])
 
   useEffect(() => {
     if (selectedSatellite) {
@@ -190,21 +195,8 @@ export default function EndOfLifePage() {
     }
   }, [selectedSatellite])
 
-  const fetchSatellites = async () => {
-    try {
-      const response = await fetch('http://localhost:8080/api/eol/satellites')
-      const data = await response.json()
-      setSatellites(data)
-      if (data.length > 0) {
-        setSelectedSatellite(data[0].id)
-      }
-    } catch (error) {
-      console.error('Error fetching satellites:', error)
-    }
-  }
-
   const fetchSatelliteData = async (satelliteId: string) => {
-    setIsLoading(true)
+    setIsDataLoading(true)
     try {
       // Fetch all data in parallel
       const [metricsRes, forecastRes, alertsRes, timelineRes, disposalRes, healthRes, eolRes] = await Promise.all([
@@ -238,13 +230,14 @@ export default function EndOfLifePage() {
     } catch (error) {
       console.error('Error fetching satellite data:', error)
     } finally {
-      setIsLoading(false)
+      setIsDataLoading(false)
     }
   }
 
   const handleRefresh = () => {
+    refreshSatellites();
     if (selectedSatellite) {
-      fetchSatelliteData(selectedSatellite)
+      fetchSatelliteData(selectedSatellite);
     }
   }
 
@@ -254,6 +247,10 @@ export default function EndOfLifePage() {
   }, [isLoading]);
 
   const satelliteOptions = useMemo(() => {
+    if (!satellites || !Array.isArray(satellites)) {
+      return [];
+    }
+    
     return satellites.map((sat) => ({
       key: sat.id || sat.noradId,
       value: sat.id || sat.noradId,

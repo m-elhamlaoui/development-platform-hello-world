@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { Search, Plus, Minus, Navigation, Satellite, Rocket, Activity, Filter, X, RotateCcw } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import EarthGlobe from "@/components/earth-globe"
+
 import SatelliteModal from "@/components/satellite-modal"
 import { satellites } from "@/lib/data"
 import { MainNav } from "@/components/main-nav"
@@ -28,6 +28,11 @@ import axios from 'axios'
 import axiosRetry from 'axios-retry'
 import Cookies from 'js-cookie'
 import React from 'react'
+import dynamic from 'next/dynamic'
+
+
+const EarthGlobe = dynamic(() => import('@/components/earth-globe'), { ssr: false })
+
 
 // Configure axios retry
 axiosRetry(axios, { 
