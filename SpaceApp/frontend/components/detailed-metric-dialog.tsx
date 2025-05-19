@@ -12,7 +12,7 @@ import { getHistoricalHealthData } from '@/services/health/getHealth'
 import { format } from 'date-fns'
 
 interface DetailedMetricDialogProps {
-  metricKey: string;
+  metricKey: string | null;
   metric: {
     value: number | string;
     unit?: string;
@@ -23,7 +23,7 @@ interface DetailedMetricDialogProps {
       warning: [number, number];
       critical: [number, number];
     };
-  };
+  } | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -134,7 +134,8 @@ export default function DetailedMetricDialog({ metricKey, metric, open, onOpenCh
     }
   }
 
-  const formatMetricName = (key: string): string => {
+  const formatMetricName = (key: string | null): string => {
+    if (!key) return '';
     return key
       .split('_')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -160,8 +161,8 @@ export default function DetailedMetricDialog({ metricKey, metric, open, onOpenCh
       {
         label: formatMetricName(metricKey),
         data: historicalData.data,
-        borderColor: getStatusColor(metric.status),
-        backgroundColor: `${getStatusColor(metric.status)}20`,
+        borderColor: getStatusColor(metric?.status || 'normal'),
+        backgroundColor: `${getStatusColor(metric?.status || 'normal')}20`,
       },
     ],
   }
@@ -177,8 +178,8 @@ export default function DetailedMetricDialog({ metricKey, metric, open, onOpenCh
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-2xl font-bold">
-              {typeof metric.value === "number" ? metric.value.toFixed(2) : metric.value}
-              {metric.unit && <span className="ml-1 text-sm">{metric.unit}</span>}
+              {typeof metric?.value === "number" ? metric.value.toFixed(2) : metric?.value}
+              {metric?.unit && <span className="ml-1 text-sm">{metric.unit}</span>}
             </div>
           </div>
 
@@ -225,7 +226,7 @@ export default function DetailedMetricDialog({ metricKey, metric, open, onOpenCh
             )}
           </div>
 
-          {metric.thresholds && (
+          {metric?.thresholds && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Thresholds</CardTitle>

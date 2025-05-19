@@ -29,12 +29,13 @@ def extract_features(data):
     print("🧪 Extracted features:", features_array)
     return features_array
 
-def send_prediction_to_kafka(satellite_id, norad_id, prediction, features):
+def send_prediction_to_kafka(satellite_id,satelliteName, norad_id, prediction, features):
     """
     Sends prediction + flat features as JSON to the 'eol_predictions' Kafka topic.
     """
     prediction_data = {
         "satellite_id": satellite_id,
+        "satellite_name": satelliteName,
         "norad_id": norad_id,
         "prediction": float(prediction),
         "eccentricity": features[0],
@@ -84,6 +85,7 @@ def start_kafka_consumer():
                 # Send prediction + flat features
                 send_prediction_to_kafka(
                     data.get("satellite_id"),
+                    data.get("satellite_name"),
                     data.get("norad_id"),
                     prediction[0],
                     features_array[0]

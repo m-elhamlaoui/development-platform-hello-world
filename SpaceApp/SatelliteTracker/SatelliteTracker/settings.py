@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     'SatelliteTracker',
     'django_celery_beat',
     'data_preprocessing_service',
-    'health_service'
+    'health_service',
+    'eol_service'
 ]
 
 MIDDLEWARE = [

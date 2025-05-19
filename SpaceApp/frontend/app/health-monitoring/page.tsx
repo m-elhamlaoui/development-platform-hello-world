@@ -1,17 +1,9 @@
 "use client"
 
-<<<<<<< HEAD
 import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { format, formatDistanceToNow } from "date-fns"
 import { motion, HTMLMotionProps } from "framer-motion"
-=======
-import { useState, useEffect, useMemo, Suspense } from "react"
-import Link from "next/link"
-import { format, formatDistanceToNow } from "date-fns"
-import { motion, HTMLMotionProps } from "framer-motion"
-import type { MotionProps } from "framer-motion"
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 import {
   AlertTriangle,
   Battery,
@@ -58,33 +50,11 @@ import {
 import { toast } from "@/components/ui/use-toast"
 import { LineChart } from "@/components/line-chart"
 import { MainNav } from "@/components/main-nav"
-<<<<<<< HEAD
 import { UserNav } from "@/components/user-nav";
 import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth';
 import { cn } from "@/lib/utils"
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useSatellites } from "@/hooks/useSatellites"
-=======
-import { UserNav } from "@/components/user-nav"
-import { getLatestHealthStatus, getHistoricalHealthData } from '../../services/health/getHealth'
-import { cn } from "@/lib/utils"
-import { useSearchParams, useRouter } from 'next/navigation'
-import { useSatellites } from "@/hooks/useSatellites"
-import dynamic from 'next/dynamic'
-import { MotionDiv } from "@/components/ui/motion"
-import HealthMonitoringLoading from "./loading"
-import { useHealthData } from "@/hooks/useHealthData"
-
-// Dynamically import heavy components with loading states
-const DetailedMetricDialog = dynamic(() => import("@/components/detailed-metric-dialog"), {
-  loading: () => <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-    <div className="bg-[#1a2234] rounded-lg p-6">
-      <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-    </div>
-  </div>,
-  ssr: false
-})
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 
 type MetricStatus = 'normal' | 'warning' | 'critical';
 type AlertSeverity = 'info' | 'warning' | 'critical';
@@ -127,7 +97,6 @@ interface SparklineProps {
   status: MetricStatus;
 }
 
-<<<<<<< HEAD
 interface DetailedMetricDialogProps {
   metricKey: string;
   metric: Metric;
@@ -135,8 +104,6 @@ interface DetailedMetricDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-=======
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 type TimeRangeOption = "1h" | "24h" | "7d" | "30d";
 
 interface AvailableRanges {
@@ -390,7 +357,6 @@ const MetricCard = ({ metricKey, metric, onClick }: MetricCardProps) => {
   );
 };
 
-<<<<<<< HEAD
 // Detailed Metric Dialog component
 const DetailedMetricDialog = ({ metricKey, metric, open, onOpenChange }: DetailedMetricDialogProps) => {
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("1h");
@@ -664,8 +630,6 @@ const DetailedMetricDialog = ({ metricKey, metric, open, onOpenChange }: Detaile
   );
 };
 
-=======
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 // Helper function to format time since launch
 const formatTimeSinceLaunch = (days: number): string => {
   const years = Math.floor(days / 365);
@@ -703,28 +667,21 @@ const getStatus = (
   return 'normal';
 };
 
-<<<<<<< HEAD
 // Add type for motion components
 type MotionDivProps = HTMLMotionProps<"div">;
 
-=======
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 export default function HealthMonitoringPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [satelliteSearch, setSatelliteSearch] = useState("");
   const [ownerFilter, setOwnerFilter] = useState("all");
-<<<<<<< HEAD
   const [satellitePrimaryData, setSatellitePrimaryData] = useState<SatelliteData | null>(null)
-=======
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
   const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
   const [detailedMetricOpen, setDetailedMetricOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [realTimeUpdates, setRealTimeUpdates] = useState(true)
   const [lastUpdated, setLastUpdated] = useState(new Date())
-<<<<<<< HEAD
   const [overallHealth, setOverallHealth] = useState<number>(100)
 
   // Replace the satellites state with our custom hook
@@ -734,17 +691,11 @@ export default function HealthMonitoringPage() {
     error: satellitesError,
     uniqueOwners 
   } = useSatellites();
-=======
-
-  const { data: healthData, isLoading: isLoadingHealth, error: healthError, lastUpdated: healthLastUpdated, refresh } = useHealthData(Number(searchParams?.get('norad_id')) || 48272)
-  const { satellites, isLoading: isLoadingSatellites, error: satellitesError, uniqueOwners } = useSatellites()
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 
   // Memoize filtered satellites based on search and owner filter
   const filteredSatellites = useMemo(() => {
     return satellites.filter(sat => {
       const matchesSearch = sat.name.toLowerCase().includes(satelliteSearch.toLowerCase()) ||
-<<<<<<< HEAD
                           sat.norad_id.toString().includes(satelliteSearch);
       const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter;
       return matchesSearch && matchesOwner;
@@ -753,20 +704,12 @@ export default function HealthMonitoringPage() {
 
   // Update parameter name to match API routes
   const norad_id = Number(searchParams?.get('norad_id')) || 48272;
-=======
-                          sat.norad_id.toString().includes(satelliteSearch)
-      const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter
-      return matchesSearch && matchesOwner
-    })
-  }, [satellites, satelliteSearch, ownerFilter])
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
 
   // Update the satellite selection handler
   const handleSatelliteSelect = (selectedNoradId: number) => {
     router.push(`/health-monitoring?norad_id=${selectedNoradId}`);
   };
 
-<<<<<<< HEAD
   // Update the data fetching effect
   useEffect(() => {
     const fetchData = async () => {
@@ -850,8 +793,6 @@ export default function HealthMonitoringPage() {
     setOverallHealth(percentage);
   }, [satellitePrimaryData]);
 
-=======
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
   // Simulate real-time updates (UI only)
   useEffect(() => {
     if (!realTimeUpdates) return
@@ -881,48 +822,18 @@ export default function HealthMonitoringPage() {
     })
   }
 
-<<<<<<< HEAD
   // GUARD: Wait for data to load
   if (!satellitePrimaryData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white">
         <div className="animate-spin h-12 w-12 mb-4 border-4 border-blue-500 border-t-transparent rounded-full"></div>
         <h2 className="text-lg">Loading satellite health data...</h2>
-=======
-  if (isLoadingHealth || isLoadingSatellites) {
-    return <HealthMonitoringLoading />
-  }
-
-  if (healthError || satellitesError) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white p-6">
-        <div className="text-red-400 mb-4">
-          {healthError || satellitesError}
-        </div>
-        <Button onClick={() => window.location.reload()}>
-          Retry
-        </Button>
-      </div>
-    )
-  }
-
-  if (!healthData) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f1520] text-white p-6">
-        <div className="text-gray-400 mb-4">
-          No health data available
-        </div>
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
       </div>
     )
   }
 
   // Filter metrics based on search and status filter, excluding time_since_launch from the grid
-<<<<<<< HEAD
   const filteredMetrics = Object.entries(satellitePrimaryData.metrics).filter(([key, metric]) => {
-=======
-  const filteredMetrics = Object.entries(healthData.metrics).filter(([key, metric]) => {
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
     const matchesSearch = formatMetricName(key).toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || metric.status === statusFilter;
     const isNotTimeSinceLaunch = key !== 'time_since_launch';
@@ -935,22 +846,14 @@ export default function HealthMonitoringPage() {
       <header className="app-header border-b border-[#1e2a41]">
         <div className="flex h-16 items-center px-4">
           <Link href="/" className="flex items-center mr-8">
-<<<<<<< HEAD
             <motion.div
-=======
-            <MotionDiv
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
               className="w-8 h-8 bg-white rounded mr-2 flex items-center justify-center"
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
               style={{ display: 'flex' }}
             >
               <div className="w-4 h-4 bg-[#0f1520]"></div>
-<<<<<<< HEAD
             </motion.div>
-=======
-            </MotionDiv>
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
             <span className="font-bold text-lg gradient-text">Orbital</span>
           </Link>
           <MainNav />
@@ -959,11 +862,7 @@ export default function HealthMonitoringPage() {
           <div className="flex-1 flex items-center justify-end space-x-4">
             <div className="w-[300px]">
               <Select
-<<<<<<< HEAD
                 value={norad_id.toString()}
-=======
-                value={searchParams?.get('norad_id') || ''}
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
                 onValueChange={(value) => handleSatelliteSelect(Number(value))}
               >
                 <SelectTrigger className="bg-[#1e2a41] border-none">
@@ -1042,7 +941,6 @@ export default function HealthMonitoringPage() {
 
       {/* Main content */}
       <main className="flex-1 p-6">
-<<<<<<< HEAD
         <motion.div
           className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
           initial={{ opacity: 0, y: -20 }}
@@ -1209,151 +1107,6 @@ export default function HealthMonitoringPage() {
         <DetailedMetricDialog
           metricKey={selectedMetric}
           metric={satellitePrimaryData.metrics[selectedMetric]}
-=======
-        <Suspense fallback={<HealthMonitoringLoading />}>
-          <MotionDiv
-            className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            style={{ display: 'flex' }}
-          >
-            <div>
-              <h1 className="text-3xl font-bold fancy-title">Satellite Health Monitoring Dashboard</h1>
-              <p className="text-gray-400 mt-1">
-                Real-time monitoring of satellite health metrics to ensure optimal performance and early issue detection.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-              <div className="flex items-center gap-2">
-                <Satellite className="h-5 w-5 text-blue-400" />
-                <div>
-                  <div className="text-sm text-gray-400">Satellite</div>
-                  <div className="font-medium">{healthData.name}</div>
-                </div>
-              </div>
-              <div className="h-8 w-px bg-gray-700 hidden sm:block"></div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-blue-400" />
-                <div>
-                  <div className="text-sm text-gray-400">Last Updated</div>
-                  <div className="font-medium">{new Date(healthData.timestamp).toLocaleTimeString()}</div>
-                </div>
-              </div>
-            </div>
-          </MotionDiv>
-
-          {/* Summary Cards - now with 4 cards */}
-          <MotionDiv
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            style={{ display: 'grid' }}
-          >
-            {/* Health Status Card */}
-            <Card className={cn(
-              "overflow-hidden border-l-4",
-              healthData.prediction === 1 ? "border-l-green-500" : "border-l-red-500"
-            )}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Health Status</CardTitle>
-                <div className={cn(
-                  "rounded-full p-1",
-                  healthData.prediction === 1 
-                    ? "bg-green-100 dark:bg-green-900/20" 
-                    : "bg-red-100 dark:bg-red-900/20"
-                )}>
-                  <Zap className={cn(
-                    "h-4 w-4",
-                    healthData.prediction === 1 ? "text-green-500" : "text-red-500"
-                  )} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl font-bold">
-                    {healthData.prediction === 1 ? "Healthy" : "Attention Needed"}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Time Since Launch Card */}
-            <Card className="overflow-hidden border-l-4 border-l-blue-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Time Since Launch</CardTitle>
-                <div className="rounded-full bg-blue-100 p-1 dark:bg-blue-900/20">
-                  <Rocket className="h-4 w-4 text-blue-500" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {healthData.metrics.time_since_launch.value}
-                </div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Total Days: {healthData.metrics.time_since_launch.days ?? 0}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* New Confidence Level Card */}
-            <Card className="overflow-hidden border-l-4 border-l-purple-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Confidence Level</CardTitle>
-                <div className="rounded-full bg-purple-100 p-1 dark:bg-purple-900/20">
-                  <Signal className="h-4 w-4 text-purple-500" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl font-bold">
-                    {Math.max(0, Math.min(100, (healthData.probability * 100) - 2)).toFixed(1)}%
-                  </div>
-                  <Progress 
-                    value={Math.max(0, Math.min(100, (healthData.probability * 100) - 2))} 
-                    className="flex-1" 
-                  />
-                </div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Prediction confidence level
-                </div>
-              </CardContent>
-            </Card>
-          </MotionDiv>
-
-          {/* Metrics Grid */}
-          <MotionDiv
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            style={{ display: 'grid' }}
-          >
-            {filteredMetrics.length > 0 ? (
-              filteredMetrics.map(([key, metric]) => (
-                <MetricCard key={key} metricKey={key} metric={metric} onClick={handleMetricClick} />
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
-                <Search className="h-12 w-12 text-gray-500 mb-4" />
-                <h3 className="text-lg font-medium">No metrics found</h3>
-                <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
-                <Button variant="outline" className="mt-4" onClick={handleResetFilters}>
-                  Reset Filters
-                </Button>
-              </div>
-            )}
-          </MotionDiv>
-        </Suspense>
-      </main>
-
-      {/* Detailed Metric Dialog */}
-      {selectedMetric && healthData?.metrics[selectedMetric] && (
-        <DetailedMetricDialog
-          metricKey={selectedMetric}
-          metric={healthData.metrics[selectedMetric]}
->>>>>>> 6302bea4e1991c46b4e440a7feeeda128c0996c4
           open={detailedMetricOpen}
           onOpenChange={setDetailedMetricOpen}
         />

@@ -63,7 +63,8 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { LineChart } from "@/components/line-chart"
-import { useTrackedSatellites } from "@/contexts/TrackedSatellitesContext"
+import { useSatellites } from "@/hooks/useSatellites"
+
 
 interface Satellite {
   id: string;
@@ -170,7 +171,9 @@ interface DisposalOption {
 export default function EndOfLifePage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [lastUpdated, setLastUpdated] = useState(new Date())
+  const [isLoading, setIsLoading] = useState(false)
   const [selectedSatellite, setSelectedSatellite] = useState("")
+  //const [satellites, setSatellites] = useState<Satellite[]>([])
   const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [eolStatus, setEolStatus] = useState<EolStatus | null>(null)
   const [metrics, setMetrics] = useState<Metrics | null>(null)
@@ -178,25 +181,52 @@ export default function EndOfLifePage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [timeline, setTimeline] = useState<Timeline | null>(null)
   const [disposalOptions, setDisposalOptions] = useState<DisposalOption[]>([])
-  
-  const { satellites, isLoading: isSatellitesLoading, error: satellitesError, refreshSatellites } = useTrackedSatellites()
-  const [isDataLoading, setIsDataLoading] = useState(false)
-  const isLoading = isSatellitesLoading || isDataLoading
 
-  useEffect(() => {
-    if (satellites && satellites.length > 0 && !selectedSatellite) {
-      setSelectedSatellite(satellites[0].id)
-    }
-  }, [satellites, selectedSatellite])
+  /*useEffect(() => {
+    fetchSatellites()
+  }, [])*/
 
   useEffect(() => {
     if (selectedSatellite) {
       fetchSatelliteData(selectedSatellite)
     }
   }, [selectedSatellite])
+  
+
+  /*const fetchSatellites = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/api/eol/satellites')
+      const data = await response.json()
+      setSatellites(data)
+      if (data.length > 0) {
+        setSelectedSatellite(data[0].id)
+      }
+    } catch (error) {
+      console.error('Error fetching satellites:', error)
+    }
+  }*/
+
+  const { 
+    satellites, 
+    isLoading: isLoadingSatellites, 
+    error: satellitesError,
+    uniqueOwners 
+  } = useSatellites();
+
+  useEffect(() => {
+    if (!selectedSatellite && satellites.length > 0) {
+      // use the norad_id, not the Mongo id
+      setSelectedSatellite(String(satellites[0].norad_id))
+    }
+  }, [satellites, selectedSatellite])
+
+ 
+  
+
+  
 
   const fetchSatelliteData = async (satelliteId: string) => {
-    setIsDataLoading(true)
+    setIsLoading(true)
     try {
       // Fetch all data in parallel
       const [metricsRes, forecastRes, alertsRes, timelineRes, disposalRes, healthRes, eolRes] = await Promise.all([
@@ -230,14 +260,13 @@ export default function EndOfLifePage() {
     } catch (error) {
       console.error('Error fetching satellite data:', error)
     } finally {
-      setIsDataLoading(false)
+      setIsLoading(false)
     }
   }
 
   const handleRefresh = () => {
-    refreshSatellites();
     if (selectedSatellite) {
-      fetchSatelliteData(selectedSatellite);
+      fetchSatelliteData(selectedSatellite)
     }
   }
 
@@ -247,16 +276,12 @@ export default function EndOfLifePage() {
   }, [isLoading]);
 
   const satelliteOptions = useMemo(() => {
-    if (!satellites || !Array.isArray(satellites)) {
-      return [];
-    }
-    
-    return satellites.map((sat) => ({
-      key: sat.id || sat.noradId,
-      value: sat.id || sat.noradId,
-      label: `${sat.name} (${sat.noradId})`
-    }));
-  }, [satellites]);
+    return satellites.map(sat => ({
+      key:   sat.id,                    // keep the Mongo id as React key
+      value: String(sat.norad_id),      // the actual value you pass to fetch
+      label: `${sat.name} (${sat.norad_id})`
+    }))
+  }, [satellites])
 
   const batteryData = {
     labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
