@@ -1,5 +1,5 @@
-# === Java 21 Service B ===
----
+# === Deployments ===
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,19 +19,6 @@ spec:
           image: gateway-service:java21
           ports:
             - containerPort: 8080
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: gateway-service
-spec:
-  type: NodePort
-  selector:
-    app: gateway-service
-  ports:
-    - port: 8080
-      targetPort: 8080
-      nodePort: 30000
 
 ---
 apiVersion: apps/v1
@@ -57,20 +44,6 @@ spec:
             - containerPort: 8888
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: config-service
-spec:
-  type: NodePort
-  selector:
-    app: config-service
-  ports:
-    - port: 8888
-      targetPort: 8888
-      nodePort: 30001
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -92,56 +65,27 @@ spec:
             - containerPort: 8761
 
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  name: discovery-service
-spec:
-  type: NodePort
-  selector:
-    app: discovery-service
-  ports:
-    - port: 8761
-      targetPort: 8761
-      nodePort: 30002
-
-
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: health-status-service
+  name: health-monitoring-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: health-status-service
+      app: health-monitoring-service
   template:
     metadata:
       labels:
-        app: health-status-service
+        app: health-monitoring-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1 #hnaya kadir fin baghi deplwayih laptop2 ismail 3 ayman
+        kubernetes.io/hostname: laptop1
       containers:
-        - name: health-status-service
-          image: health-status-service:java17
+        - name: health-monitoring-service
+          image: health-monitoring-service:java17
           ports:
             - containerPort: 8081
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: health-status-service
-spec:
-  type: NodePort
-  selector:
-    app: health-status-service
-  ports:
-    - port: 8081
-      targetPort: 8081
-      nodePort: 30003
 
 ---
 apiVersion: apps/v1
@@ -159,25 +103,32 @@ spec:
         app: fetching-data-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1 #hnaya kadir fin baghi deplwayih laptop2 ismail 3 ayman
+        kubernetes.io/hostname: laptop1
       containers:
         - name: fetching-data-service
           image: fetching-data-service:java21
           ports:
             - containerPort: 8082
 
-#zido dakchi dyalkom
-
 ---
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: fetching-data-service
+  name: user-service
 spec:
-  type: NodePort
+  replicas: 1
   selector:
-    app: fetching-data-service
-  ports:
-    - port: 8082
-      targetPort: 8082
-      nodePort: 30004
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: laptop1
+      containers:
+        - name: user-service
+          image: user-service:java21
+          ports:
+            - containerPort: 8082

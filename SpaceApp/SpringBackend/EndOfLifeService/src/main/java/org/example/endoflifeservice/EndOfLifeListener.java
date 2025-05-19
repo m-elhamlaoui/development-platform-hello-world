@@ -45,8 +45,9 @@ public class EndOfLifeListener {
             // Build EolModel from parsed data
             EolModel model = new EolModel();
 
-            model.setNorad(((Number) data.get("satellite_id")).intValue());
+            model.setNorad_id(((Number) data.get("satellite_id")).intValue());
             model.setSatelliteName((String) data.get("satellite_name"));
+            System.out.println("satellite name : "+model.getSatelliteName());
             model.setEccentricity(((Number) data.get("eccentricity")).doubleValue());
             model.setOrbital_velocity_approx(((Number) data.get("orbital_velocity_approx")).doubleValue());
             model.setRaan(((Number) data.get("raan")).doubleValue());

@@ -131,7 +131,7 @@ public class SatelliteDataServiceImpl implements SatelliteDataService {
 
     private Map<String, Object> createEolStatus(EolModel eol) {
         Map<String, Object> status = new HashMap<>();
-        status.put("noradId", eol.getNorad());
+        status.put("noradId", eol.getNorad_id());
         status.put("eccentricity", eol.getEccentricity());
         status.put("orbitalVelocity", eol.getOrbital_velocity_approx());
         status.put("raan", eol.getRaan());

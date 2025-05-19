@@ -685,14 +685,42 @@ export default function HealthMonitoringPage() {
   const [overallHealth, setOverallHealth] = useState<number>(100)
 
   // Replace the satellites state with our custom hook
-  const { 
+  /* const { 
     satellites, 
     isLoading: isLoadingSatellites, 
     error: satellitesError,
     uniqueOwners 
-  } = useSatellites();
+  } = useSatellites(); */
 
   // Memoize filtered satellites based on search and owner filter
+  
+
+  const [isLoadingSatellites, setIsLoadingSatellites] = useState(true);
+const [satellitesError, setSatellitesError]   = useState<string | null>(null);
+
+
+  const STORAGE_KEY = "satellite_data"
+  const [satellites, setSatellites] = useState<Satellite[]>([]);
+
+  useEffect(() => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      setSatellites(JSON.parse(raw));
+    }
+  } catch (err) {
+    console.error("Failed to parse cached satellites", err);
+    setSatellitesError("Could not load your tracked satellites.");
+  } finally {
+    setIsLoadingSatellites(false);
+  }
+}, []);
+
+   const uniqueOwners = useMemo(
+   () => Array.from(new Set(satellites.map(s => s.owner))),
+    [satellites]
+  );
+
   const filteredSatellites = useMemo(() => {
     return satellites.filter(sat => {
       const matchesSearch = sat.name.toLowerCase().includes(satelliteSearch.toLowerCase()) ||
@@ -700,7 +728,7 @@ export default function HealthMonitoringPage() {
       const matchesOwner = ownerFilter === "all" || sat.owner === ownerFilter;
       return matchesSearch && matchesOwner;
     });
-  }, [satellites, satelliteSearch, ownerFilter]);
+  }, [satellites, satelliteSearch, ownerFilter]); 
 
   // Update parameter name to match API routes
   const norad_id = Number(searchParams?.get('norad_id')) || 48272;

@@ -14,8 +14,9 @@ public class EolModel {
     @Id
     private String id;
 
-    @JsonProperty("Norad_id")
-    private int norad;
+
+    private int Norad_id;
+
     private String satelliteName;
     private double eccentricity;
     private double orbital_velocity_approx;

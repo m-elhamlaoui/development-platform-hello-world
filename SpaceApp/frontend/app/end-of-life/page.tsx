@@ -1,5 +1,7 @@
 "use client"
 
+import { format } from "date-fns"
+
 import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   AlertTriangle,
@@ -206,17 +208,39 @@ export default function EndOfLifePage() {
     }
   }*/
 
-  const { 
+  /* const { 
     satellites, 
     isLoading: isLoadingSatellites, 
     error: satellitesError,
     uniqueOwners 
-  } = useSatellites();
+  } = useSatellites(); */
+
+  // at top of component
+const STORAGE_KEY = "satellite_data"
+
+const [satellites, setSatellites] = useState<Satellite[]>(() => {
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(STORAGE_KEY)
+  try {
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    console.error("Failed to parse cached satellites")
+    return []
+  }
+})
+
+// then compute uniqueOwners yourself
+const uniqueOwners = useMemo(
+  () => Array.from(new Set(satellites.map((s) => s.owner))),
+  [satellites]
+)
+
 
   useEffect(() => {
     if (!selectedSatellite && satellites.length > 0) {
       // use the norad_id, not the Mongo id
       setSelectedSatellite(String(satellites[0].norad_id))
+      console.log("satellites ",satellites)
     }
   }, [satellites, selectedSatellite])
 
@@ -256,6 +280,7 @@ export default function EndOfLifePage() {
       setDisposalOptions(disposalData)
       setHealthStatus(healthData)
       setEolStatus(eolData)
+      console.log('eolDATA: ',eolStatus)
       setLastUpdated(new Date())
     } catch (error) {
       console.error('Error fetching satellite data:', error)
@@ -382,6 +407,25 @@ export default function EndOfLifePage() {
     },
   ]
 
+  
+  // ── 1️⃣ Compute the 3 EoL values via useMemo
+ const { prediction, timestamp } = eolStatus ?? { prediction: 0, timestamp: new Date().toISOString() };
+
+ // round to whole days
+ const totalDays = useMemo(() => Math.round(prediction), [prediction]);
+
+ // split into years + remainder days
+ const years = useMemo(() => Math.floor(totalDays / 365), [totalDays]);
+ const daysRemainder = useMemo(() => totalDays % 365, [totalDays]);
+
+ // compute exact calendar date
+ const eolDate = useMemo(() => {
+   const base = new Date(timestamp);
+   const d = new Date(base);
+   d.setDate(base.getDate() + totalDays);
+   return d;
+ }, [timestamp, totalDays]);
+
   return (
     <div className="flex min-h-screen flex-col bg-[#0f1520] text-white">
       {/* Header */}
@@ -453,34 +497,57 @@ export default function EndOfLifePage() {
         ) : (
           <>
             {/* Prediction Score Card */}
-            {healthStatus && (
+            {eolStatus && (
               <Card className="mb-6 bg-[#1a2234]/80 border-[#2d3a51] rounded-xl overflow-hidden backdrop-blur-sm shadow-xl hover:shadow-2xl transition-all hover:border-blue-500/30">
             <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Activity className="h-5 w-5 mr-2 text-blue-400" />
-                      Prediction Score
-                    </div>
-                    <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
-                      Warning
-                    </Badge>
+            <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center">
+                  <Orbit className="h-5 w-5 mr-2 text-blue-400" />
+                  End-of-Life Prediction
+                </div>
+                <Badge className="bg-gradient-to-r from-amber-600 to-amber-500 border-0 text-white font-medium">
+                  {totalDays >= 0 ? "Future" : "Passed"}
+                </Badge>
               </CardTitle>
             </CardHeader>
+
             <CardContent className="pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <div className="text-4xl font-bold mb-2">{healthStatus.prediction.toFixed(2)}</div>
-                      <Progress value={healthStatus.prediction * 100} max={100} className="h-2 mb-4 bg-amber-950/30" />
-                      <div className="text-sm text-gray-400">{healthStatus.explanation.attitude_control_error}</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Total days */}
+                <div>
+                  <div className="text-4xl font-bold mb-2">{totalDays}</div>
+                  <div className="text-sm text-gray-400">Days until EoL</div>
+                  <Progress
+                    value={Math.min(100, (totalDays / 365) * 100)}
+                    max={100}
+                    className="h-2 mb-4 bg-amber-950/30"
+                  />
                 </div>
-                    <div>
-                      <div className="text-4xl font-bold mb-2">{healthStatus.probability.toFixed(2)}</div>
-                      <Progress value={healthStatus.probability * 100} max={100} className="h-2 mb-4 bg-blue-950/30" />
-                      <div className="text-sm text-gray-400">Probability of end-of-life event</div>
+
+                {/* Years + days */}
+                <div>
+                  <div className="text-4xl font-bold mb-2">
+                    {years} yr {daysRemainder} d
+                  </div>
+                  <div className="text-sm text-gray-400">Equivalent span</div>
+                  <Progress
+                    value={Math.min(100, (daysRemainder / 365) * 100)}
+                    max={100}
+                    className="h-2 mb-4 bg-blue-950/30"
+                  />
                 </div>
+
+                {/* Exact calendar date */}
+                <div>
+                  <div className="text-2xl font-semibold mb-1">
+                    {format(eolDate, "MMMM do, yyyy")}
+                  </div>
+                  <div className="text-sm text-gray-400">Predicted EoL date</div>
                 </div>
-                </CardContent>
-              </Card>
+              </div>
+            </CardContent>
+          </Card>
+        
             )}
 
             {/* Satellite Info Grid */}
