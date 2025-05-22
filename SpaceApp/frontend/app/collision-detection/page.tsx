@@ -33,7 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { CollisionChart } from "@/components/collision-chart"
 import { CollisionPredictionModal } from "@/components/collision-prediction-modal"
-import { fetchCollisions, fetchCollisionStats, fetchCollisionTimeline, type CollisionAlert, type CollisionStats, type PaginatedResponse } from "@/lib/collision-service"
+import { fetchUserCollisions, fetchCollisionStats, fetchCollisionTimeline, type CollisionAlert, type CollisionStats, type PaginatedResponse } from "@/lib/collision-service"
 import { Progress } from "@/components/ui/progress"
 import { MainNav } from "@/components/main-nav"
 import { UserNav } from "@/components/user-nav"
@@ -101,7 +101,7 @@ export default function CollisionDetectionPage() {
       }
 
       const [collisionResponse, stats] = await Promise.all([
-        fetchCollisions(page, pageSize),
+        fetchUserCollisions(page, pageSize),
         fetchCollisionStats()
       ])
       
@@ -136,7 +136,7 @@ export default function CollisionDetectionPage() {
     const interval = setInterval(async () => {
       try {
         const [collisionResponse, stats] = await Promise.all([
-          fetchCollisions(currentPage, pageSize),
+          fetchUserCollisions(currentPage, pageSize),
           fetchCollisionStats()
         ])
         
@@ -177,7 +177,7 @@ export default function CollisionDetectionPage() {
       setIsLoadingMore(true)
       try {
         const nextPage = currentPage + 1
-        const response = await fetchCollisions(nextPage, pageSize)
+        const response = await fetchUserCollisions(nextPage, pageSize)
         setCollisions(prev => [...prev, ...response.data])
         setCurrentPage(nextPage)
         setHasMore(response.hasMore)
