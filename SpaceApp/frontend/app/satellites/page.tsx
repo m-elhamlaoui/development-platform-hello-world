@@ -178,7 +178,7 @@ export default React.memo(function SatellitesPage() {
       }
       return;
     }
-
+    
     try {
       console.log('Fetching satellites with token');
       setLoading(true);
