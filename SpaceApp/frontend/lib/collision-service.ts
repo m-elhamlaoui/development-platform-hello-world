@@ -203,6 +203,43 @@ export async function fetchCollisions(page = 1, pageSize = 10): Promise<Paginate
   }
 }
 
+export async function fetchUserCollisions(page = 1, pageSize = 10): Promise<PaginatedResponse<CollisionAlert>> {
+  try {
+    const url = new URL(API_ENDPOINTS.collisions);
+    url.searchParams.append('page', page.toString());
+    url.searchParams.append('pageSize', pageSize.toString());
+    url.searchParams.append('userOnly', 'true');
+    
+    const response = await fetchWithTimeout(url.toString());
+    const data = await handleResponse<CollisionAlert[]>(response);
+    
+    // Convert the array response to our paginated format
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedData = data.slice(startIndex, endIndex);
+    
+    return {
+      data: paginatedData,
+      total: data.length,
+      page,
+      pageSize,
+      hasMore: endIndex < data.length
+    };
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      console.error('Connection Error:', {
+        url: API_ENDPOINTS.collisions,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw new ApiError('Unable to connect to the API. Please check if the server is running.');
+    }
+    throw error;
+  }
+}
+
 export async function fetchSatellites(): Promise<Satellite[]> {
   try {
     const response = await fetchWithTimeout(API_ENDPOINTS.satellites);

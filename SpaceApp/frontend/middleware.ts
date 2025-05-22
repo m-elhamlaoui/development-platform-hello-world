@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
 
   // Allow API routes to pass through
   if (isApiRoute) {
-    return NextResponse.next();
+     NextResponse.next();
   }
 
   // Redirect root path to 404
