@@ -6,7 +6,7 @@ pipeline {
       steps {
         script {
           // Build image
-          sh "docker build -t frontend_spaceapp ."
+          bat "docker build -t frontend_spaceapp ."
         }
       }
     }
@@ -14,15 +14,15 @@ pipeline {
     stage('Deploy to Kubernetes') {
       steps {
         echo 'Deploying frontend to Kubernetes...'
-        sh 'kubectl apply -f deployment.yml'
-        sh 'kubectl apply -f service.yml'
+        bat 'kubectl apply -f deployment.yml'
+        bat 'kubectl apply -f service.yml'
       }
     }
   }
 
   post {
     success {
-      echo 'Pipeline finished successfully!'
+      echo 'Pipeline finibated successfully!'
     }
     failure {
       echo 'Pipeline failed!'
