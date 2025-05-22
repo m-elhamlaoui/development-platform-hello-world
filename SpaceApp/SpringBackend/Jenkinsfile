@@ -5,7 +5,8 @@ pipeline {
 
     environment {
         LOCAL_REGISTRY = 'localhost:32000'
-        SERVICES = ['gateway-service', 'auth-service', 'collision-service']
+        SERVICES = ['gateway-service', 'config-service', 'discovery-service','health-monitoring-service',
+        'fetching-data-service', 'end-of-life-service']
     }
 
     stages {
