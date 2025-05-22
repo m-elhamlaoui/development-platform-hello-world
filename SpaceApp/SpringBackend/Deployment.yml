@@ -131,3 +131,49 @@ spec:
           image: end-of-life-service:java17
           ports:
             - containerPort: 8005
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collision-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: collision-service
+  template:
+    metadata:
+      labels:
+        app: collision-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: laptop1
+      containers:
+        - name: collision-service
+          image: collision-service:java17
+          ports:
+            - containerPort: 8003
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: laptop1
+      containers:
+        - name: user-service
+          image: user-service:java17
+          ports:
+            - containerPort: 8085
