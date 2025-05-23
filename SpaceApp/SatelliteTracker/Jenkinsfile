@@ -1,39 +1,29 @@
 pipeline {
-    agent any
+  agent any
 
-    environment {
-        IMAGE_NAME = 'satellite-app:latest'
-        DOCKER_CONTEXT = 'SpaceApp/SatelliteTracker'
-        WINDOWS_CONTEXT = 'SpaceApp\\SatelliteTracker'
+  environment {
+    IMAGE_NAME = 'satellite-backend:latest'
+  }
+
+  stages {
+    stage('🐳 Build Docker Image') {
+      steps {
+        dir('SpaceApp/SatelliteTracker') {
+          script {
+            echo '🔨 Building backend Docker image...'
+            bat "docker build -t %IMAGE_NAME% ."
+          }
+        }
+      }
     }
+  }
 
-    stages {
-        stage('🔍 Checkout Code') {
-            steps {
-                echo '✅ Checking out code from local workspace'
-                checkout scm
-            }
-        }
-
-        stage('📁 List Directory') {
-            steps {
-                echo '🔎 Showing project structure...'
-                bat "dir"
-                bat "dir %WINDOWS_CONTEXT%"
-            }
-        }
-
-        stage('🐳 Build Docker Image') {
-            steps {
-                echo '🛠 Building Docker image from subdirectory...'
-                bat "docker build -t %IMAGE_NAME% %DOCKER_CONTEXT%"
-            }
-        }
+  post {
+    success {
+      echo '✅ Backend image built successfully!'
     }
-
-    post {
-        always {
-            echo '✅ Done. Image build test complete.'
-        }
+    failure {
+      echo '❌ Backend image build failed!'
     }
+  }
 }
