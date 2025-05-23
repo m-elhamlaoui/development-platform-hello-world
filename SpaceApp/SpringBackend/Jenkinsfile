@@ -41,7 +41,7 @@ pipeline {
                         def dirName = DIRECTORIES[i]
 
                         echo "Building ${svc}.jar in directory ${dirName}..."
-                        dir(dirName) {
+                        dir('SpaceApp/SpringBackend/' + dirName) {
                            echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
                             bat 'dir'
                             bat 'mvn clean package -DskipTests'
