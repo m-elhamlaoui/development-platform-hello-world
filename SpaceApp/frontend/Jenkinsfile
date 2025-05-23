@@ -7,7 +7,7 @@ pipeline {
         dir('SpaceApp/frontend') { 
         script {
           // Build image
-          bat "docker build --platform=linux/amd64 -t frontend_spaceapp ."
+          bat "docker build -t frontend_spaceapp ."
         }
       }
       }
