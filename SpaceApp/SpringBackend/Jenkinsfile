@@ -68,8 +68,8 @@ pipeline {
         stage('Deploy to MicroK8s') {
             steps {
                 echo "Deploying Spring Boot apps to MicroK8s..."
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/spring-app-deployment.yaml"
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/spring-app-service.yaml"
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yaml"
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Service.yaml"
             }
         }
     }
