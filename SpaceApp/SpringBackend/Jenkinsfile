@@ -59,7 +59,7 @@ pipeline {
                         def dirName = DIRECTORIES[i]
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
                         echo "Building Docker image for ${svc} from directory ${dirName}..."
-                        dir(dirName) {
+                        dir('SpaceApp/SpringBackend/' + dirName) {
                             bat "docker build -t ${image} ."
                         }
                     }
