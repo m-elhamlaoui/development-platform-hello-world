@@ -1,0 +1,52 @@
+# Node.js dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# Next.js build output and cache
+.next
+out
+build
+
+# Environment files (only include necessary ones in Dockerfile explicitly if needed)
+.env
+.env.local
+.env.development
+.env.test
+.env.production.local
+
+# Git and version control
+.git
+.gitignore
+
+# IDE and editor files
+.vscode
+.idea
+*.sublime-project
+*.sublime-workspace
+
+# OS and temporary files
+.DS_Store
+Thumbs.db
+*.log
+*.cache
+
+# Test and coverage reports
+coverage
+test-results
+junit.xml
+
+# Build artifacts and miscellaneous
+dist
+tmp
+temp
+*.bak
+*.swp
+*.tmp
+
+# Documentation and miscellaneous
+README.md
+LICENSE
+docs
