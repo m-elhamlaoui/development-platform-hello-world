@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'satellite-app:latest'
+        DOCKER_CONTEXT = 'SpaceApp\\SatelliteTracker' // update this path as needed
     }
 
     stages {
@@ -13,10 +14,18 @@ pipeline {
             }
         }
 
+        stage('📁 List Directory') {
+            steps {
+                echo '🔎 Showing project structure...'
+                bat "dir"
+                bat "dir %DOCKER_CONTEXT%"
+            }
+        }
+
         stage('🐳 Build Docker Image') {
             steps {
-                echo '🛠 Building Docker image...'
-                bat "docker build -t $IMAGE_NAME ."
+                echo '🛠 Building Docker image from subdirectory...'
+                bat "docker build -t %IMAGE_NAME% %DOCKER_CONTEXT%"
             }
         }
     }
