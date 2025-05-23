@@ -1,5 +1,3 @@
-// File: spring-app/Jenkinsfile
-
 def DIRECTORIES = [
     'GateawayService','ConfigService','DiscoveryService',
     'HealthMonitoringService','FetchingData','EndOfLifeService','CollisionService','UserService'
@@ -9,92 +7,68 @@ def SERVICES = [
     'health-monitoring-service', 'fetching-data-service', 'end-of-life-service',
     'collision-service','user-service'
 ]
+
 pipeline {
     agent any
 
     environment {
-        def LOCAL_REGISTRY = '172.26.25.145:32000'
-
+        LOCAL_REGISTRY = 'localhost:32000'  // MicroK8s default
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
-        stage('DEBUG: Liste fichiers') {
-            steps {
-                bat 'dir'
-            }
-        }
-
 
         stage('Build JARs') {
-
-
             steps {
                 script {
                     for (int i = 0; i < SERVICES.size(); i++) {
-                        def svc = SERVICES[i]
                         def dirName = DIRECTORIES[i]
-
-                        echo "Building ${svc}.jar in directory ${dirName}..."
-                        dir('SpaceApp/SpringBackend/' + dirName) {
-                           echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
-                            bat 'dir'
-                            bat 'mvn clean package -DskipTests'
+                        echo "Building JAR in directory ${dirName}..."
+                        dir("SpaceApp/SpringBackend/${dirName}") {
+                            echo "DEBUG : Listing files in ${dirName}"
+                            sh 'ls -l'
+                            sh 'mvn clean package -DskipTests'
                         }
                     }
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Build Images with Buildah') {
             steps {
                 script {
                     for (int i = 0; i < SERVICES.size(); i++) {
                         def svc = SERVICES[i]
                         def dirName = DIRECTORIES[i]
-                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Building Docker image for ${svc} from directory ${dirName}..."
-                        dir('SpaceApp/SpringBackend/' + dirName) {
-                            echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
-                            bat 'dir'
-                            bat "docker build -t ${image} ."
+                        def image = "${env.LOCAL_REGISTRY}/${svc}:latest"
+                        echo "Building OCI image for ${svc} from directory ${dirName}..."
+                        dir("SpaceApp/SpringBackend/${dirName}") {
+                            echo "DEBUG : Listing files in ${dirName}"
+                            sh 'ls -l target/'
+                            // Build OCI image using buildah
+                            sh "buildah bud -t ${image} ."
                         }
                     }
                 }
             }
         }
 
-
-        stage('Push to MicroK8s Registry') {
+        stage('Deploy to MicroK8s') {
             steps {
-                script {
-                    for (svc in SERVICES) {
-                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Pushing Docker image for ${svc}..."
-                        bat "docker push ${image}"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy All Microservices') {
-            steps {
-                echo "Deploying Spring Boot app (all services)..."
-                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-deployment.yaml"
-                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-service.yaml"
-
+                echo "Deploying Spring Boot apps to MicroK8s..."
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/spring-app-deployment.yaml"
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/spring-app-service.yaml"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully.'
+            echo '✅ Spring Boot app deployed successfully to MicroK8s.'
         }
         failure {
             echo '❌ Deployment failed.'
