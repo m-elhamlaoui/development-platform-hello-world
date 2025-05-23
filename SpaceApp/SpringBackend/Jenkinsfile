@@ -39,10 +39,11 @@ pipeline {
                     for (int i = 0; i < SERVICES.size(); i++) {
                         def svc = SERVICES[i]
                         def dirName = DIRECTORIES[i]
-                        echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
-                            bat 'dir'
+
                         echo "Building ${svc}.jar in directory ${dirName}..."
                         dir(dirName) {
+                           echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
+                            bat 'dir'
                             bat 'mvn clean package -DskipTests'
                         }
                     }
