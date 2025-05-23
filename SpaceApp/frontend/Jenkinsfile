@@ -7,7 +7,7 @@ pipeline {
         dir('SpaceApp/frontend') { 
         script {
           // Build image
-          bat "docker build -t frontend_spaceapp ."
+          sh "docker build -t frontend_spaceapp ."
         }
       }
       }
@@ -18,15 +18,15 @@ pipeline {
         dir('SpaceApp/frontend') { 
         script{
         echo 'Deploying frontend to Kubernetes...'
-        bat 'kubectl apply -f deployment.yml'
-        bat 'kubectl apply -f service.yml'
+        sh 'kubectl apply -f deployment.yml'
+        sh 'kubectl apply -f service.yml'
       }}}
     }
   }
 
   post {
     success {
-      echo 'Pipeline finibated successfully!'
+      echo 'Pipeline finished successfully!'
     }
     failure {
       echo 'Pipeline failed!'
