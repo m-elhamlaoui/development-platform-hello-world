@@ -15,10 +15,12 @@ pipeline {
 
     stage('Deploy to Kubernetes') {
       steps {
+        dir('SpaceApp/frontend') { 
+        script{
         echo 'Deploying frontend to Kubernetes...'
         bat 'kubectl apply -f deployment.yml'
         bat 'kubectl apply -f service.yml'
-      }
+      }}}
     }
   }
 
