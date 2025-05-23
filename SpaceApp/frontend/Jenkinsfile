@@ -1,0 +1,35 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Build Docker Image') {
+      steps {
+        dir('SpaceApp/frontend') { 
+        script {
+          // Build image
+          bat "docker build -t frontend_spaceapp ."
+        }
+      }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        dir('SpaceApp/frontend') { 
+        script{
+        echo 'Deploying frontend to Kubernetes...'
+        bat 'kubectl apply -f deployment.yml'
+        bat 'kubectl apply -f service.yml'
+      }}}
+    }
+  }
+
+  post {
+    success {
+      echo 'Pipeline finibated successfully!'
+    }
+    failure {
+      echo 'Pipeline failed!'
+    }
+  }
+}
