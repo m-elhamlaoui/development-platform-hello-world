@@ -13,7 +13,7 @@ pipeline {
     agent any
 
     environment {
-        LOCAL_REGISTRY = 'localhost:32000'
+        def LOCAL_REGISTRY = '172.26.25.145:32000'
 
     }
 
@@ -60,6 +60,8 @@ pipeline {
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
                         echo "Building Docker image for ${svc} from directory ${dirName}..."
                         dir('SpaceApp/SpringBackend/' + dirName) {
+                            echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
+                            bat 'dir'
                             bat "docker build -t ${image} ."
                         }
                     }
