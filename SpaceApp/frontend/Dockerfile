@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:20-alpine
 
 WORKDIR /app
 
@@ -8,8 +8,11 @@ RUN npm install
 
 COPY . .
 
+ENV NODE_OPTIONS="--max_old_space_size=4049"
+
+
 RUN npm run build
 
 EXPOSE 3000
 
-CMD ["npx", "serve", "-s", "build", "-l", "3000"]
+CMD ["npm", "start"]
