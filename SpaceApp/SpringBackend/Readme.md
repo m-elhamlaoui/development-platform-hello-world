@@ -28,3 +28,4 @@ After this, reload the user groups either via a reboot or by running 'newgrp mic
 for ($port=30000; $port -le 30007; $port++) {
 netsh interface portproxy add v4tov4 listenport=$port listenaddress=0.0.0.0 connectport=$port connectaddress=172.26.25.145
 }
+sudo nano /etc/containers/registries.conf

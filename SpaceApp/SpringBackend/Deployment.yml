@@ -14,6 +14,8 @@ spec:
       labels:
         app: gateway-service
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: gateway-service
           image: localhost:32000/gateway-service:latest
@@ -36,7 +38,7 @@ spec:
         app: config-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: config-service
           image: localhost:32000/config-service:latest
@@ -58,6 +60,8 @@ spec:
       labels:
         app: discovery-service
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: discovery-service
           image: localhost:32000/discovery-service:latest
@@ -80,7 +84,7 @@ spec:
         app: health-monitoring-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: health-monitoring-service
           image: localhost:32000/health-monitoring-service:latest
@@ -103,7 +107,7 @@ spec:
         app: fetching-data-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: fetching-data-service
           image: localhost:32000/fetching-data-service:latest
@@ -126,7 +130,7 @@ spec:
         app: end-of-life-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: end-of-life-service
           image: localhost:32000/end-of-life-service:latest
@@ -149,7 +153,7 @@ spec:
         app: collision-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: collision-service
           image: localhost:32000/collision-service:latest
@@ -172,7 +176,7 @@ spec:
         app: user-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: DESKTOP-741D1T4
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: user-service
           image: localhost:32000/user-service:latest
