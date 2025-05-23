@@ -3,7 +3,8 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'satellite-app:latest'
-        DOCKER_CONTEXT = 'SpaceApp/SatelliteTracker' // update this path as needed
+        DOCKER_CONTEXT = 'SpaceApp/SatelliteTracker'
+        WINDOWS_CONTEXT = 'SpaceApp\\SatelliteTracker'
     }
 
     stages {
@@ -18,7 +19,7 @@ pipeline {
             steps {
                 echo '🔎 Showing project structure...'
                 bat "dir"
-                bat "dir %DOCKER_CONTEXT%"
+                bat "dir %WINDOWS_CONTEXT%"
             }
         }
 
