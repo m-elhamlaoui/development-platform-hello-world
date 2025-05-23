@@ -59,6 +59,7 @@ pipeline {
                             sh 'ls -l target/'
                             // Build OCI image using buildah
                             sh "buildah bud -t ${image} ."
+                            sh "buildah push ${image}"
                         }
                     }
                 }
