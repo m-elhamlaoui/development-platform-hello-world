@@ -180,6 +180,5 @@ spec:
       containers:
         - name: user-service
           image: localhost:32000/user-service:latest
-
           ports:
             - containerPort: 8085
