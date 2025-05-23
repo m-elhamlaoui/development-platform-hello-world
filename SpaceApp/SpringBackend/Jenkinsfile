@@ -24,8 +24,16 @@ pipeline {
                 checkout scm
             }
         }
+        stage('DEBUG: Liste fichiers') {
+            steps {
+                bat 'dir'
+            }
+        }
+
 
         stage('Build JARs') {
+
+
             steps {
                 script {
                     for (int i = 0; i < SERVICES.size(); i++) {
