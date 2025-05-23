@@ -1,0 +1,70 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_REGISTRY = 'localhost:32000'
+        IMAGE_NAME = 'satellite-app'
+        KUBERNETES_NAMESPACE = 'default'
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh '''
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                    python manage.py test
+                '''
+            }
+        }
+        
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} .
+                    docker tag ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                '''
+            }
+        }
+        
+        stage('Push to Registry') {
+            steps {
+                sh '''
+                    docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${DOCKER_REGISTRY}/${IMAGE_NAME}:latest
+                '''
+            }
+        }
+        
+        stage('Deploy to MicroK8s') {
+            steps {
+                sh '''
+                    # Update the deployment with the new image
+                    microk8s kubectl set image deployment/satellite-app satellite-app=${DOCKER_REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} -n ${KUBERNETES_NAMESPACE}
+                    
+                    # Wait for deployment to roll out
+                    microk8s kubectl rollout status deployment/satellite-app -n ${KUBERNETES_NAMESPACE}
+                '''
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        always {
+            // Clean up workspace
+            cleanWs()
+        }
+    }
+} 
