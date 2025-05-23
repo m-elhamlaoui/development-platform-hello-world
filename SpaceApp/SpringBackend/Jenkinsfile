@@ -1,12 +1,20 @@
 // File: spring-app/Jenkinsfile
 
+def DIRECTORIES = [
+    'GateawayService','ConfigService','DiscoveryService',
+    'HealthMonitoringService','FetchingData','EndOfLifeService','CollisionService','UserService'
+]
+def SERVICES = [
+    'gateway-service', 'config-service', 'discovery-service',
+    'health-monitoring-service', 'fetching-data-service', 'end-of-life-service',
+    'collision-service','user-service'
+]
 pipeline {
     agent any
 
     environment {
         LOCAL_REGISTRY = 'localhost:32000'
-        SERVICES = ['gateway-service', 'config-service', 'discovery-service','health-monitoring-service',
-        'fetching-data-service', 'end-of-life-service']
+
     }
 
     stages {
@@ -20,9 +28,11 @@ pipeline {
         stage('Build JARs') {
             steps {
                 script {
-                    for (svc in SERVICES) {
-                        echo "Building ${svc}.jar..."
-                        dir(svc) {
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def dirName = DIRECTORIES[i]
+                        echo "Building ${svc}.jar in directory ${dirName}..."
+                        dir(dirName) {
                             sh './mvnw clean package -DskipTests'
                         }
                     }
@@ -33,16 +43,19 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    for (svc in SERVICES) {
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def dirName = DIRECTORIES[i]
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Building Docker image for ${svc}..."
-                        dir(svc) {
+                        echo "Building Docker image for ${svc} from directory ${dirName}..."
+                        dir(dirName) {
                             sh "docker build -t ${image} ."
                         }
                     }
                 }
             }
         }
+
 
         stage('Push to MicroK8s Registry') {
             steps {
@@ -59,7 +72,9 @@ pipeline {
         stage('Deploy All Microservices') {
             steps {
                 echo "Deploying Spring Boot app (all services)..."
-                sh "microk8s kubectl apply -f k8s/spring-app-deployment.yaml"
+                sh "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-deployment.yaml"
+                sh "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-service.yaml"
+
             }
         }
     }
