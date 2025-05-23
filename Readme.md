@@ -15,7 +15,7 @@ Each module is deployed to a different machine using:
 
 ## 📡 Deployment Architecture
 
-d:\téléchargements\WhatsApp Image 2025-05-23 at 23.44.13.jpeg
+![alt text](<WhatsApp Image 2025-05-23 at 23.44.13.jpeg>)
 
 ---
 
