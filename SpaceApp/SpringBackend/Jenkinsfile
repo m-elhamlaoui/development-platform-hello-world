@@ -67,6 +67,7 @@ pipeline {
 
         stage('Deploy to MicroK8s') {
             steps {
+               echo 'verifying files'
                sh 'ls -l SpaceApp/SpringBackend/'
                 echo "Deploying Spring Boot apps to MicroK8s..."
                 sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
