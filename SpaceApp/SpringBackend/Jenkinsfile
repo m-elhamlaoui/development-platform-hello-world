@@ -33,7 +33,7 @@ pipeline {
                         def dirName = DIRECTORIES[i]
                         echo "Building ${svc}.jar in directory ${dirName}..."
                         dir(dirName) {
-                            bat 'mvnw.cmd clean package -DskipTests'
+                            bat 'mvn clean package -DskipTests'
                         }
                     }
                 }
