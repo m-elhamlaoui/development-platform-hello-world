@@ -33,7 +33,7 @@ pipeline {
                         def dirName = DIRECTORIES[i]
                         echo "Building ${svc}.jar in directory ${dirName}..."
                         dir(dirName) {
-                            sh './mvnw clean package -DskipTests'
+                            bat './mvnw clean package -DskipTests'
                         }
                     }
                 }
@@ -49,7 +49,7 @@ pipeline {
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
                         echo "Building Docker image for ${svc} from directory ${dirName}..."
                         dir(dirName) {
-                            sh "docker build -t ${image} ."
+                            bat "docker build -t ${image} ."
                         }
                     }
                 }
@@ -63,7 +63,7 @@ pipeline {
                     for (svc in SERVICES) {
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
                         echo "Pushing Docker image for ${svc}..."
-                        sh "docker push ${image}"
+                        bat "docker push ${image}"
                     }
                 }
             }
@@ -72,8 +72,8 @@ pipeline {
         stage('Deploy All Microservices') {
             steps {
                 echo "Deploying Spring Boot app (all services)..."
-                sh "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-deployment.yaml"
-                sh "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-service.yaml"
+                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-deployment.yaml"
+                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-service.yaml"
 
             }
         }
