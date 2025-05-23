@@ -1,12 +1,20 @@
 // File: spring-app/Jenkinsfile
 
+def DIRECTORIES = [
+    'GateawayService','ConfigService','DiscoveryService',
+    'HealthMonitoringService','FetchingData','EndOfLifeService','CollisionService','UserService'
+]
+def SERVICES = [
+    'gateway-service', 'config-service', 'discovery-service',
+    'health-monitoring-service', 'fetching-data-service', 'end-of-life-service',
+    'collision-service','user-service'
+]
 pipeline {
     agent any
 
     environment {
         LOCAL_REGISTRY = 'localhost:32000'
-        SERVICES = ['gateway-service', 'config-service', 'discovery-service','health-monitoring-service',
-        'fetching-data-service', 'end-of-life-service']
+
     }
 
     stages {
@@ -16,14 +24,27 @@ pipeline {
                 checkout scm
             }
         }
+        stage('DEBUG: Liste fichiers') {
+            steps {
+                bat 'dir'
+            }
+        }
+
 
         stage('Build JARs') {
+
+
             steps {
                 script {
-                    for (svc in SERVICES) {
-                        echo "Building ${svc}.jar..."
-                        dir(svc) {
-                            sh './mvnw clean package -DskipTests'
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def dirName = DIRECTORIES[i]
+
+                        echo "Building ${svc}.jar in directory ${dirName}..."
+                        dir('SpaceApp/SpringBackend/' + dirName) {
+                           echo "DEBUG : Listing files in ${dirName} (Jenkins workspace)"
+                            bat 'dir'
+                            bat 'mvn clean package -DskipTests'
                         }
                     }
                 }
@@ -33,16 +54,19 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
-                    for (svc in SERVICES) {
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def dirName = DIRECTORIES[i]
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Building Docker image for ${svc}..."
-                        dir(svc) {
-                            sh "docker build -t ${image} ."
+                        echo "Building Docker image for ${svc} from directory ${dirName}..."
+                        dir('SpaceApp/SpringBackend/' + dirName) {
+                            bat "docker build -t ${image} ."
                         }
                     }
                 }
             }
         }
+
 
         stage('Push to MicroK8s Registry') {
             steps {
@@ -50,7 +74,7 @@ pipeline {
                     for (svc in SERVICES) {
                         def image = "${LOCAL_REGISTRY}/${svc}:latest"
                         echo "Pushing Docker image for ${svc}..."
-                        sh "docker push ${image}"
+                        bat "docker push ${image}"
                     }
                 }
             }
@@ -59,7 +83,9 @@ pipeline {
         stage('Deploy All Microservices') {
             steps {
                 echo "Deploying Spring Boot app (all services)..."
-                sh "microk8s kubectl apply -f k8s/spring-app-deployment.yaml"
+                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-deployment.yaml"
+                bat "wsl microk8s kubectl apply -f /mnt/d/ProjetHamaloui/development-platform-hello-world/SpaceApp/SpringBackend/k8s/spring-app-service.yaml"
+
             }
         }
     }

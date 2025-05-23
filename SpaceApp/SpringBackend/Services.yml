@@ -80,7 +80,7 @@ spec:
   ports:
     - port: 8005
       targetPort: 8005
-      nodePort: 30004
+      nodePort: 30005
 
 ---
 apiVersion: v1
@@ -93,7 +93,7 @@ spec:
   ports:
     - port: 8003
       targetPort: 8003
-      nodePort: 30005
+      nodePort: 30006
 
 ---
 
@@ -108,5 +108,5 @@ spec:
   ports:
     - port: 8085
       targetPort: 8085
-      nodePort: 8085
+      nodePort: 30007
 
