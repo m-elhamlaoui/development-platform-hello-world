@@ -1,18 +1,10 @@
-FROM node:20-alpine
-
+FROM node:18
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
-
 COPY . .
-
-ENV NODE_OPTIONS="--max_old_space_size=4049"
-
-
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
-
 EXPOSE 3000
-
 CMD ["npm", "start"]
