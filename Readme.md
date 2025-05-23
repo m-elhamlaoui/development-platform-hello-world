@@ -15,7 +15,8 @@ Each module is deployed to a different machine using:
 
 ## 📡 Deployment Architecture
 
-![Deployment Architecture](architecture.png)
+![Uploading WhatsApp Image 2025-05-23 at 23.44.13.jpeg…]()
+
 
 ---
 
