@@ -75,6 +75,7 @@ kind: Service
 metadata:
   name: end-of-life-service
 spec:
+  type: NodePort
   selector:
     app: end-of-life-service
   ports:
@@ -88,6 +89,7 @@ kind: Service
 metadata:
   name: collision-service
 spec:
+  type: NodePort
   selector:
     app: collision-service
   ports:
