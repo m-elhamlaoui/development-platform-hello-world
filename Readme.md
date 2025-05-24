@@ -1,55 +1,91 @@
-# Satellite Tracker Application
+# 🚀 Multi-Node Application Deployment with Docker, Jenkins & MicroK8s
 
-## Project Overview
-The Satellite Tracker is an innovative monitoring system designed to provide predictive and real-time insights into the operational status of satellites. This system tracks health status, end of life, pollution levels, and potential collision risks, all powered by advanced AI models.
+This project demonstrates the deployment of a distributed application composed of three modules:
+- ✅ **Frontend** (Next.js)
+- ✅ **Backend 1** (Django)
+- ✅ **Backend 2** (Spring Boot)
 
-### Key Features
-- **Health Monitoring**: Uses AI to predict potential failures and maintenance needs.
-- **End of Life Estimation**: AI-driven predictions on when satellites will cease operations.
-- **Pollution Tracking**: Monitors and reports on the pollution emitted by satellites.
-- **Collision Detection**: Utilizes real-time data processing to alert potential collisions.
+Each module is deployed to a different machine using:
+- **Docker** for containerization
+- **Jenkins** for CI/CD automation
+- **MicroK8s** for orchestration and container management
 
-## Interface Snapshots
+---
 
-### Login and Security Page
-![Login and Security Page](WireframeImages/page6.webp)
-*Features a secure login interface that ensures authenticated access to the Satellite Tracker system, providing user-specific data visibility and interaction capabilities based on assigned permissions.*
+## 📡 Deployment Architecture
 
-### Dashboard Overview
-![Dashboard](WireframeImages/page1.png)
-*The main dashboard provides a comprehensive overview of all satellites, with the ability to click into detailed views.*
+![Deployment Architecture](architecture.png)
 
-### Health Monitoring Service
-![Health Monitoring Service](WireframeImages/page2.webp)
-*This page focuses on the predictive health monitoring of each satellite, displaying various metrics and historical data.*
+---
 
-### End of Life Service
-![End of Life Service](WireframeImages/page3.webp)
-*Provides detailed projections and data about the estimated end of operational life for each satellite.*
+## ⚙️ Technologies Used
 
-### Collision Detection Service
-![Collision Detection Service](WireframeImages/page5.webp)
-*Displays real-time data and alerts about potential collisions between satellites.*
-
-### Pollution Tracking Service
-![Pollution Tracking Service](WireframeImages/page4.webp)
-*Shows detailed information on the pollution levels emitted by satellites, with trends and statistics.*
+| Tool         | Purpose                                        |
+|--------------|------------------------------------------------|
+| Docker       | Containerize each service                      |
+| Jenkins      | Automate build, test, and deploy pipelines     |
+| MicroK8s     | Lightweight Kubernetes for service orchestration |
+| GitHub       | Version control and webhook integration        |
 
 
+---
 
-## Technologies Used
+## 🔧 Deployment Setup
 
-### **Spring Boot**
-Used for building the real-time services that handle data processing and alerting mechanisms. Spring Boot supports the rapid development of microservices, facilitating efficient handling of incoming data streams.
+### 🖥️ Machine 1 – Jenkins Master
 
-### **Django**
-Manages the back-end operations including extensive data management from satellite feeds, user interactions, and historical data analytics.
+- Runs the Jenkins server
+- Monitors GitHub via webhook
+- Contains build pipeline stages for all services
+- Sends builds to corresponding worker nodes using SSH or Kubernetes context
 
-### **Kafka**
-Orchestrates the flow of data between services, ensuring that all components of the system receive timely updates. Essential for handling real-time data streams and integrating different services within the architecture.
+### 🖥️ Machine 2 – Django Node
 
-### **Data Pipelines**
-Employs advanced data pipelines to process and analyze telemetry data in real-time, crucial for functions such as collision detection and pollution tracking.
+- Hosts the `SatelliteTracker` Django app
+- Dockerized using a `Dockerfile`
+- Deploys the app to MicroK8s via Jenkins
 
-### **AI Models**
-Develops and utilizes AI models to predict
+### 🖥️ Machine 3 – Spring Node
+
+- Hosts the `spring-module` app
+- Dockerized and deployed via pipeline
+- Also joins the MicroK8s cluster (if multi-node orchestration is needed)
+
+---
+
+## 🔁 CI/CD Pipeline Flow
+
+1. **Push to GitHub** triggers webhook
+2. **Jenkins** checks out the code
+3. **Docker Build** happens for each service:
+   - Uses `Jenkinsfile` for consistent stage control
+4. **Image Deployment**:
+   - Pushed to container registry or deployed directly via MicroK8s
+5. **MicroK8s** applies YAML manifests for service exposure
+
+---
+
+## 🛠 Sample Jenkins Pipeline (per module)
+
+```groovy
+pipeline {
+  agent any
+  environment {
+    IMAGE_NAME = 'satellite-backend:latest'
+  }
+  stages {
+    stage('Build Docker Image') {
+      steps {
+        dir('SpaceApp/SatelliteTracker') {
+          sh 'docker build -t $IMAGE_NAME .'
+        }
+      }
+    }
+    stage('Deploy to MicroK8s') {
+      steps {
+        sh 'microk8s kubectl apply -f deploy.yml'
+        sh 'microk8s kubectl apply -f service.yml'
+      }
+    }
+  }
+}
