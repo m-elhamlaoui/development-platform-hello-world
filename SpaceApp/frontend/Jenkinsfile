@@ -3,24 +3,32 @@ pipeline {
 
   stages {
     stage('Build Docker Image') {
+      when {
+        changeset "SpaceApp/frontend/**"
+      }
       steps {
         dir('SpaceApp/frontend') { 
-        script {
-          // Build image
-          sh "buildah bud -t frontend_spaceapp ."
+          script {
+            // Build image
+            sh "buildah bud -t frontend_spaceapp ."
+          }
         }
-      }
       }
     }
 
     stage('Deploy to Kubernetes') {
+      when {
+        changeset "SpaceApp/frontend/**"
+      }
       steps {
         dir('SpaceApp/frontend') { 
-        script{
-        echo 'Deploying frontend to Kubernetes...'
-        sh 'kubectl apply -f deployment.yml'
-        sh 'kubectl apply -f service.yml'
-      }}}
+          script {
+            echo 'Deploying frontend to Kubernetes...'
+            sh 'kubectl apply -f deployment.yml'
+            sh 'kubectl apply -f service.yml'
+          }
+        }
+      }
     }
   }
 
