@@ -1,16 +1,23 @@
-// File: spring-app/Jenkinsfile
+def DIRECTORIES = [
+    'GateawayService','ConfigService','DiscoveryService',
+    'HealthMonitoringService','FetchingData','EndOfLifeService','CollisionService','UserService'
+]
+def SERVICES = [
+    'gateway-service', 'config-service', 'discovery-service',
+    'health-monitoring-service', 'fetching-data-service', 'end-of-life-service',
+    'collision-service','user-service'
+]
 
 pipeline {
     agent any
 
     environment {
-        LOCAL_REGISTRY = 'localhost:32000'
-        SERVICES = ['gateway-service', 'config-service', 'discovery-service','health-monitoring-service',
-        'fetching-data-service', 'end-of-life-service']
+        LOCAL_REGISTRY = 'localhost:32000'  // MicroK8s default
+        JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
+        JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
@@ -18,55 +25,61 @@ pipeline {
         }
 
         stage('Build JARs') {
+                    steps {
+                        script {
+                            for (int i = 0; i < SERVICES.size(); i++) {
+                                def dirName = DIRECTORIES[i]
+                                echo "Building JAR in directory ${dirName}..."
+                                dir("SpaceApp/SpringBackend/${dirName}") {
+                                    echo "DEBUG : Listing files in ${dirName}"
+                                    sh 'ls -l'
+                                    // 👉 Sélectionne JAVA_HOME selon le dossier
+                                    if (dirName == 'FetchingData') {
+                                        sh 'export JAVA_HOME=${JAVA21} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
+                                    } else {
+                                        sh 'export JAVA_HOME=${JAVA17} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+
+        stage('Build Images with Buildah') {
             steps {
                 script {
-                    for (svc in SERVICES) {
-                        echo "Building ${svc}.jar..."
-                        dir(svc) {
-                            sh './mvnw clean package -DskipTests'
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def dirName = DIRECTORIES[i]
+                        def image = "${env.LOCAL_REGISTRY}/${svc}:latest"
+                        echo "Building OCI image for ${svc} from directory ${dirName}..."
+                        dir("SpaceApp/SpringBackend/${dirName}") {
+                            echo "DEBUG : Listing files in ${dirName}"
+                            sh 'ls -l target/'
+                            // Build OCI image using buildah
+                            sh "buildah bud -t ${image} ."
+                            sh "buildah push ${image}"
                         }
                     }
                 }
             }
         }
 
-        stage('Build Docker Images') {
+        stage('Deploy to MicroK8s') {
             steps {
-                script {
-                    for (svc in SERVICES) {
-                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Building Docker image for ${svc}..."
-                        dir(svc) {
-                            sh "docker build -t ${image} ."
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Push to MicroK8s Registry') {
-            steps {
-                script {
-                    for (svc in SERVICES) {
-                        def image = "${LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Pushing Docker image for ${svc}..."
-                        sh "docker push ${image}"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy All Microservices') {
-            steps {
-                echo "Deploying Spring Boot app (all services)..."
-                sh "microk8s kubectl apply -f k8s/spring-app-deployment.yaml"
+               echo 'verifying files'
+               sh 'ls -l SpaceApp/SpringBackend/'
+                echo "Deploying Spring Boot apps to MicroK8s..."
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully.'
+            echo '✅ Spring Boot app deployed successfully to MicroK8s.'
         }
         failure {
             echo '❌ Deployment failed.'

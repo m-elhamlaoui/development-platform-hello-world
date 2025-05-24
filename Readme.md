@@ -1,5 +1,6 @@
 # 🚀 Multi-Node Application Deployment with Docker, Jenkins & MicroK8s
 
+We used the same application we developed for the first project 'plateformes de développement' .
 This project demonstrates the deployment of a distributed application composed of three modules:
 - ✅ **Frontend** (Next.js)
 - ✅ **Backend 1** (Django)
@@ -14,7 +15,7 @@ Each module is deployed to a different machine using:
 
 ## 📡 Deployment Architecture
 
-![Deployment Architecture](architecture.png)
+![alt text](<WhatsApp Image 2025-05-23 at 23.44.13.jpeg>)
 
 ---
 

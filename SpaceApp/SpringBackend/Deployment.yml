@@ -14,9 +14,11 @@ spec:
       labels:
         app: gateway-service
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: gateway-service
-          image: gateway-service:java21
+          image: localhost:32000/gateway-service:latest
           ports:
             - containerPort: 8080
 
@@ -36,10 +38,10 @@ spec:
         app: config-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: config-service
-          image: config-service:java17
+          image: localhost:32000/config-service:latest
           ports:
             - containerPort: 8888
 
@@ -58,9 +60,11 @@ spec:
       labels:
         app: discovery-service
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: discovery-service
-          image: discovery-service:java17
+          image: localhost:32000/discovery-service:latest
           ports:
             - containerPort: 8761
 
@@ -80,10 +84,10 @@ spec:
         app: health-monitoring-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: health-monitoring-service
-          image: health-monitoring-service:java17
+          image: localhost:32000/health-monitoring-service:latest
           ports:
             - containerPort: 8081
 
@@ -103,12 +107,13 @@ spec:
         app: fetching-data-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
         - name: fetching-data-service
-          image: fetching-data-service:java21
+          image: localhost:32000/fetching-data-service:latest
           ports:
             - containerPort: 8082
+
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -125,9 +130,55 @@ spec:
         app: end-of-life-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: laptop1
+        kubernetes.io/hostname: desktop-741d1t4
       containers:
-        - name:  end-of-life-service
-          image: end-of-life-service:java17
+        - name: end-of-life-service
+          image: localhost:32000/end-of-life-service:latest
           ports:
             - containerPort: 8005
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: collision-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: collision-service
+  template:
+    metadata:
+      labels:
+        app: collision-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
+      containers:
+        - name: collision-service
+          image: localhost:32000/collision-service:latest
+          ports:
+            - containerPort: 8003
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: desktop-741d1t4
+      containers:
+        - name: user-service
+          image: localhost:32000/user-service:latest
+          ports:
+            - containerPort: 8085
