@@ -15,12 +15,14 @@ spec:
         app: gateway-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: gateway-service
-          image: localhost:32000/gateway-service:latest
+          image: youssefbouraoui1/gateway-service:latest
           ports:
             - containerPort: 8080
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -38,12 +40,14 @@ spec:
         app: config-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: config-service
-          image: localhost:32000/config-service:latest
+          image: youssefbouraoui1/config-service:latest
           ports:
             - containerPort: 8888
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -61,12 +65,14 @@ spec:
         app: discovery-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: discovery-service
-          image: localhost:32000/discovery-service:latest
+          image: youssefbouraoui1/discovery-service:latest
           ports:
             - containerPort: 8761
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -84,12 +90,14 @@ spec:
         app: health-monitoring-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: health-monitoring-service
-          image: localhost:32000/health-monitoring-service:latest
+          image: youssefbouraoui1/health-monitoring-service:latest
           ports:
             - containerPort: 8081
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -107,12 +115,14 @@ spec:
         app: fetching-data-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: fetching-data-service
-          image: localhost:32000/fetching-data-service:latest
+          image: youssefbouraoui1/fetching-data-service:latest
           ports:
             - containerPort: 8082
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -130,12 +140,14 @@ spec:
         app: end-of-life-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: ayman-virtual-machine
       containers:
         - name: end-of-life-service
-          image: localhost:32000/end-of-life-service:latest
+          image: youssefbouraoui1/end-of-life-service:latest
           ports:
             - containerPort: 8005
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -153,12 +165,14 @@ spec:
         app: collision-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: ayman-virtual-machine
       containers:
         - name: collision-service
-          image: localhost:32000/collision-service:latest
+          image: youssefbouraoui1/collision-service:latest
           ports:
             - containerPort: 8003
+      imagePullSecrets:
+        - name: regcred
 
 ---
 apiVersion: apps/v1
@@ -176,9 +190,11 @@ spec:
         app: user-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: desktop-741d1t4
+        kubernetes.io/hostname: yoyo-virtualbox
       containers:
         - name: user-service
-          image: localhost:32000/user-service:latest
+          image: youssefbouraoui1/user-service:latest
           ports:
             - containerPort: 8085
+      imagePullSecrets:
+        - name: regcred

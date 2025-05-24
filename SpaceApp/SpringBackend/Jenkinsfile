@@ -12,7 +12,7 @@ pipeline {
     agent any
 
     environment {
-        LOCAL_REGISTRY = 'localhost:32000'  // MicroK8s default
+        DOCKERHUB_USER = 'yourdockerhubusername'
         JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
         JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
     }
@@ -25,52 +25,43 @@ pipeline {
         }
 
         stage('Build JARs') {
-                    steps {
-                        script {
-                            for (int i = 0; i < SERVICES.size(); i++) {
-                                def dirName = DIRECTORIES[i]
-                                echo "Building JAR in directory ${dirName}..."
-                                dir("SpaceApp/SpringBackend/${dirName}") {
-                                    echo "DEBUG : Listing files in ${dirName}"
-                                    sh 'ls -l'
-                                    // 👉 Sélectionne JAVA_HOME selon le dossier
-                                    if (dirName == 'FetchingData') {
-                                        sh 'export JAVA_HOME=${JAVA21} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
-                                    } else {
-                                        sh 'export JAVA_HOME=${JAVA17} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-        stage('Build Images with Buildah') {
             steps {
                 script {
                     for (int i = 0; i < SERVICES.size(); i++) {
-                        def svc = SERVICES[i]
                         def dirName = DIRECTORIES[i]
-                        def image = "${env.LOCAL_REGISTRY}/${svc}:latest"
-                        echo "Building OCI image for ${svc} from directory ${dirName}..."
                         dir("SpaceApp/SpringBackend/${dirName}") {
-                            echo "DEBUG : Listing files in ${dirName}"
-                            sh 'ls -l target/'
-                            // Build OCI image using buildah
-                            sh "buildah bud -t ${image} ."
-                            sh "buildah push ${image}"
+                            if (dirName == 'FetchingData') {
+                                sh 'export JAVA_HOME=${JAVA21} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
+                            } else {
+                                sh 'export JAVA_HOME=${JAVA17} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
+                            }
                         }
                     }
                 }
             }
         }
 
-        stage('Deploy to MicroK8s') {
+        stage('Build & Push Images') {
             steps {
-               echo 'verifying files'
-               sh 'ls -l SpaceApp/SpringBackend/'
-                echo "Deploying Spring Boot apps to MicroK8s..."
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+                    sh "buildah login -u $DOCKERHUB_USER -p $DOCKERHUB_TOKEN docker.io"
+                    script {
+                        for (int i = 0; i < SERVICES.size(); i++) {
+                            def svc = SERVICES[i]
+                            def dirName = DIRECTORIES[i]
+                            def image = "${DOCKERHUB_USER}/${svc}:latest"
+                            dir("SpaceApp/SpringBackend/${dirName}") {
+                                sh "buildah bud -t ${image} ."
+                                sh "buildah push ${image}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            steps {
                 sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
                 sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
@@ -79,7 +70,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully to MicroK8s.'
+            echo '✅ Spring Boot app deployed successfully to Kubernetes.'
         }
         failure {
             echo '❌ Deployment failed.'
