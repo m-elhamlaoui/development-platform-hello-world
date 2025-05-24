@@ -12,7 +12,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'yourdockerhubusername'
+        DOCKERHUB_USER = 'youssefbouraoui1'
         JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
         JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
     }
