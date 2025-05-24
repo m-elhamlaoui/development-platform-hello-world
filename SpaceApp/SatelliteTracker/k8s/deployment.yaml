@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: satellite-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: satellite-app
+  template:
+    metadata:
+      labels:
+        app: satellite-app
+    spec:
+      containers:
+        - name: satellite-app
+          image: localhost:32000/satellite-app
+          ports:
+            - containerPort: 9003

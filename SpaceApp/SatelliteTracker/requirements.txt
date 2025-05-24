@@ -1,3 +1,10 @@
-django
-kafka-python
-djangorestframework
+Django==4.2.0
+djangorestframework==3.14.0
+numpy==1.24.3
+sgp4==2.21.0
+requests==2.31.0
+kafka-python==2.0.2
+python-decouple==3.8
+pymongo==4.6.1
+python-dateutil==2.8.2
+pytz==2024.1

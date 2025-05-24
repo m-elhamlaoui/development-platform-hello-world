@@ -1,0 +1,29 @@
+pipeline {
+  agent any
+
+  environment {
+    IMAGE_NAME = 'satellite-backend:latest'
+  }
+
+  stages {
+    stage('🐳 Build Docker Image') {
+      steps {
+        dir('SpaceApp/SatelliteTracker') {
+          script {
+            echo '🔨 Building backend Docker image...'
+            bat "docker build -t %IMAGE_NAME% ."
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Backend image built successfully!'
+    }
+    failure {
+      echo '❌ Backend image build failed!'
+    }
+  }
+}
