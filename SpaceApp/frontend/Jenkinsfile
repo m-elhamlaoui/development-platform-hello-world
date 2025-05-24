@@ -1,17 +1,47 @@
 pipeline {
   agent any
 
+  environment {
+    DOCKERHUB_USER = 'youssefbouraoui1'
+    IMAGE_NAME = 'frontend_spaceapp'
+    DOCKER_TAG = 'latest'
+  }
+
   stages {
+    stage('Checkout Code') {
+      steps {
+        checkout scm
+      }
+    }
+
     stage('Build Docker Image') {
       when {
         changeset "SpaceApp/frontend/**"
       }
       steps {
-        dir('SpaceApp/frontend') { 
+        dir('SpaceApp/frontend') {
           script {
-            // Build image
-            sh "buildah bud -t frontend_spaceapp ."
+            sh "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${DOCKER_TAG} ."
           }
+        }
+      }
+    }
+
+    stage('Push to Docker Hub') {
+      when {
+        changeset "SpaceApp/frontend/**"
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+          sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+          dir('SpaceApp/frontend') {
+            script {
+              def image = "${DOCKERHUB_USER}/${IMAGE_NAME}:${DOCKER_TAG}"
+              sh "docker push ${image}"
+            }
+          }
+          // Optional logout
+          sh "docker logout"
         }
       }
     }
@@ -21,7 +51,7 @@ pipeline {
         changeset "SpaceApp/frontend/**"
       }
       steps {
-        dir('SpaceApp/frontend') { 
+        dir('SpaceApp/frontend') {
           script {
             echo 'Deploying frontend to Kubernetes...'
             sh 'kubectl apply -f deployment.yml'
@@ -34,10 +64,10 @@ pipeline {
 
   post {
     success {
-      echo 'Pipeline finished successfully!'
+      echo '✅ Frontend deployed and image pushed to Docker Hub successfully.'
     }
     failure {
-      echo 'Pipeline failed!'
+      echo '❌ Pipeline failed.'
     }
   }
 }
