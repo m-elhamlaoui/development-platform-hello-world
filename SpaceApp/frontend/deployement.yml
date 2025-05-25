@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: frontend-deployment
 spec:
-  replicas: 3
+  replicas: 1  # Reduce to 2 to lower memory pressure
   selector:
     matchLabels:
       app: frontend
@@ -13,7 +13,14 @@ spec:
         app: frontend
     spec:
       containers:
-        - name: frontend
-          image: youssefbouraoui1/frontend_spaceapp:latest
-          ports:
-            - containerPort: 3000
+      - name: frontend
+        image: youssefbouraoui1/frontend_spaceapp:latest
+        ports:
+        - containerPort: 3000
+        resources:
+          limits:
+            memory: "6Gi"  # Reduced from 8Gi to be conservative
+            cpu: "1"
+          requests:
+            memory: "3Gi"
+            cpu: "0.5"
