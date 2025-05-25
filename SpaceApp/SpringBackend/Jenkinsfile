@@ -15,7 +15,7 @@ pipeline {
         DOCKERHUB_USER = 'youssefbouraoui1'
         JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
         JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
-        KUBECONFIG = '/var/lib/jenkins/.kube/config'
+        KUBECONFIG = '/var/snap/microk8s/current/credentials/client.config' // ✅ MicroK8s config
     }
 
     stages {
@@ -30,28 +30,29 @@ pipeline {
                 script {
                     for (int i = 0; i < SERVICES.size(); i++) {
                         def dirName = DIRECTORIES[i]
+                        def javaHome = (dirName == 'FetchingData') ? env.JAVA21 : env.JAVA17
                         dir("SpaceApp/SpringBackend/${dirName}") {
-                            if (dirName == 'FetchingData') {
-                                sh 'export JAVA_HOME=${JAVA21} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
-                            } else {
-                                sh 'export JAVA_HOME=${JAVA17} && export PATH=$JAVA_HOME/bin:$PATH && mvn clean package -DskipTests'
-                            }
+                            sh """
+                                export JAVA_HOME=${javaHome}
+                                export PATH=\$JAVA_HOME/bin:\$PATH
+                                mvn clean package -DskipTests
+                            """
                         }
                     }
                 }
             }
         }
 
-        stage('Build & Push Images') {
+        stage('Build & Push Docker Images') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
-                    sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+                    sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
                     script {
                         def tag = "build-${env.BUILD_NUMBER}"
                         for (int i = 0; i < SERVICES.size(); i++) {
                             def svc = SERVICES[i]
                             def dirName = DIRECTORIES[i]
-                            def image = "${DOCKERHUB_USER}/${svc}:${tag}"
+                            def image = "${env.DOCKERHUB_USER}/${svc}:${tag}"
                             dir("SpaceApp/SpringBackend/${dirName}") {
                                 sh "docker build -t ${image} ."
                                 sh "docker push ${image}"
@@ -63,16 +64,20 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Deploy to MicroK8s') {
             steps {
                 script {
                     def tag = "build-${env.BUILD_NUMBER}"
                     for (int i = 0; i < SERVICES.size(); i++) {
                         def svc = SERVICES[i]
-                        def image = "${DOCKERHUB_USER}/${svc}:${tag}"
-                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Services.yml"
-                        sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+                        def image = "${env.DOCKERHUB_USER}/${svc}:${tag}"
+
+                        if (i == 0) {
+                            sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                            sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                        }
+
+                        sh "microk8s kubectl set image deployment/${svc} ${svc}=${image} || true"
                     }
                 }
             }
@@ -81,10 +86,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully to K3s!'
+            echo '✅ Spring Boot app deployed successfully to MicroK8s!'
         }
         failure {
-            echo '❌ Deployment failed.'
+            echo '❌ Deployment failed. Check Jenkins logs.'
         }
     }
 }
