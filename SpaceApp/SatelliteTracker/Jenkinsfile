@@ -2,21 +2,44 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = 'youssefbouraoui1/django-service:latest'
+    IMAGE_NAME = 'youssefbouraoui1/django-service'
+    DOCKERHUB_USER = 'youssefbouraoui1'
+    // Define services list if you want to deploy multiple services
+    SERVICES = 'django-service'  // space separated if more than one
   }
 
   stages {
     stage('Build & Push Images') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
-          sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
-          dir('SpaceApp/SatelliteTracker') {
-            echo '🔨 Building backend Docker image...'
-            sh "docker build -t ${IMAGE_NAME} ."
-            sh "docker push ${IMAGE_NAME}"
+          script {
+            def tag = "build-${env.BUILD_NUMBER}"
+            sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+            dir('SpaceApp/SatelliteTracker') {
+              def image = "${DOCKERHUB_USER}/django-service:${tag}"
+              echo "🔨 Building backend Docker image: ${image}"
+              sh "docker build -t ${image} ."
+              sh "docker push ${image}"
+            }
+            sh "docker logout"
           }
-          // Optional: log out from Docker Hub for security
-          sh "docker logout"
+        }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        script {
+          def tag = "build-${env.BUILD_NUMBER}"
+          def servicesList = SERVICES.split()  // split by space if multiple
+          sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
+          sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
+
+          for (svc in servicesList) {
+            def image = "${DOCKERHUB_USER}/${svc}:${tag}"
+            echo "🔄 Updating deployment ${svc} with image ${image}"
+            sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+          }
         }
       }
     }
@@ -24,10 +47,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ Backend image built successfully!'
+      echo '✅ Backend image built and deployed successfully!'
     }
     failure {
-      echo '❌ Backend image build failed!'
+      echo '❌ Backend image build or deploy failed!'
     }
   }
 }
