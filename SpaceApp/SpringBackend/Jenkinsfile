@@ -15,6 +15,7 @@ pipeline {
         DOCKERHUB_USER = 'youssefbouraoui1'
         JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
         JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
+        KUBECONFIG = '/var/lib/jenkins/.kube/config'
     }
 
     stages {
@@ -56,7 +57,6 @@ pipeline {
                             }
                         }
                     }
-                    // Optional: log out from Docker Hub for security
                     sh "docker logout"
                 }
             }
@@ -64,15 +64,16 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                // For K3s, just use 'kubectl' (it's a symlink to 'k3s kubectl')
+                sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully to Kubernetes.'
+            echo '✅ Spring Boot app deployed successfully to K3s!'
         }
         failure {
             echo '❌ Deployment failed.'

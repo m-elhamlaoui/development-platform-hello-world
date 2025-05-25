@@ -2,17 +2,21 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = 'satellite-backend:latest'
+    IMAGE_NAME = 'youssefbouraoui1/django-service:latest'
   }
 
   stages {
-    stage('🐳 Build Docker Image') {
+    stage('Build & Push Images') {
       steps {
-        dir('SpaceApp/SatelliteTracker') {
-          script {
+        withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
+          sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+          dir('SpaceApp/SatelliteTracker') {
             echo '🔨 Building backend Docker image...'
-            bat "docker build -t %IMAGE_NAME% ."
+            sh "docker build -t ${IMAGE_NAME} ."
+            sh "docker push ${IMAGE_NAME}"
           }
+          // Optional: log out from Docker Hub for security
+          sh "docker logout"
         }
       }
     }
