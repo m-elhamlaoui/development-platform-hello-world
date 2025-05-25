@@ -1,25 +1,30 @@
-# Build stage
+# Development stage
 FROM node:18.19.0-alpine AS builder
 WORKDIR /app
+
+# Install dependencies
 COPY package*.json ./
 RUN npm ci
+
+# Copy source code
 COPY . .
-RUN npm run build
 
 # Serve with nginx
 FROM nginx:1.25-alpine
 LABEL maintainer="SpaceApp Team"
-LABEL description="SpaceApp Frontend"
+LABEL description="SpaceApp Frontend Development"
 
-# Copy built assets from builder stage
-COPY --from=builder /app/.next/standalone /usr/share/nginx/html
-COPY --from=builder /app/.next/static /usr/share/nginx/html/_next/static
-COPY --from=builder /app/public /usr/share/nginx/html/public
+# Copy nginx configuration
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+# Copy the Next.js app
+COPY --from=builder /app /app
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Install necessary tools
+RUN apk add --no-cache nodejs npm
+
+# Expose ports
+EXPOSE 80 3000
+
+# Start both nginx and Next.js dev server
+CMD sh -c "cd /app && npm run dev & nginx -g 'daemon off;'" 
