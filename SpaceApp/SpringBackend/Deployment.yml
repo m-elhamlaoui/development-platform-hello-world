@@ -15,7 +15,7 @@ spec:
         app: gateway-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: gateway-service
           image: youssefbouraoui1/gateway-service:latest
@@ -40,7 +40,7 @@ spec:
         app: config-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: config-service
           image: youssefbouraoui1/config-service:latest
@@ -65,7 +65,7 @@ spec:
         app: discovery-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: discovery-service
           image: youssefbouraoui1/discovery-service:latest
@@ -90,7 +90,7 @@ spec:
         app: health-monitoring-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: health-monitoring-service
           image: youssefbouraoui1/health-monitoring-service:latest
@@ -115,7 +115,7 @@ spec:
         app: fetching-data-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: fetching-data-service
           image: youssefbouraoui1/fetching-data-service:latest
@@ -140,7 +140,7 @@ spec:
         app: end-of-life-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: ayman-virtual-machine
+        kubernetes.io/hostname: worker1
       containers:
         - name: end-of-life-service
           image: youssefbouraoui1/end-of-life-service:latest
@@ -165,7 +165,7 @@ spec:
         app: collision-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: ayman-virtual-machine
+        kubernetes.io/hostname: worker1
       containers:
         - name: collision-service
           image: youssefbouraoui1/collision-service:latest
@@ -190,7 +190,7 @@ spec:
         app: user-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: yoyo-virtualbox
+        kubernetes.io/hostname: worker1
       containers:
         - name: user-service
           image: youssefbouraoui1/user-service:latest
