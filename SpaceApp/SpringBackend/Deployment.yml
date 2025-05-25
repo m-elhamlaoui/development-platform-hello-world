@@ -196,5 +196,13 @@ spec:
           image: youssefbouraoui1/user-service:latest
           ports:
             - containerPort: 8085
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
       imagePullSecrets:
         - name: regcred
+
