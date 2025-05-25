@@ -17,10 +17,4 @@ spec:
         image: youssefbouraoui1/frontend_spaceapp:latest
         ports:
         - containerPort: 3000
-        resources:
-          limits:
-            memory: "6Gi"  # Reduced from 8Gi to be conservative
-            cpu: "1"
-          requests:
-            memory: "3Gi"
-            cpu: "0.5"
+        

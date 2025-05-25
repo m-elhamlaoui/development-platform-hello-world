@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_BUILDKIT = '1'
+    DOCKER_BUILDKIT = '0'
     IMAGE_NAME = 'frontend_spaceapp'
     DOCKER_TAG = 'latest'
     KUBECONFIG = '/var/lib/jenkins/.kube/config' // Assumes Jenkins agent has access
