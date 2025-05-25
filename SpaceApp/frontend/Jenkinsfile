@@ -54,8 +54,8 @@ pipeline {
         dir('SpaceApp/frontend') {
           script {
             echo 'Deploying frontend to Kubernetes...'
-            sh 'kubectl apply -f deployment.yml'
-            sh 'kubectl apply -f service.yml'
+            sh 'kubectl apply -f deployement.yml'
+            sh 'kubectl apply -f services.yml'
           }
         }
       }
