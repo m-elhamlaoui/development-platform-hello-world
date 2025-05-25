@@ -21,13 +21,13 @@ COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /app /app
 
 # Install necessary tools
-RUN apk add --no-cache nodejs npm curl procps
+RUN apk add --no-cache nodejs npm curl procps bash
 
 # Expose ports
 EXPOSE 80 3000
 
-# Create a script to start both services
-RUN echo '#!/bin/sh\n\
+# Create startup script
+RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
 echo "Starting Next.js development server..."\n\
@@ -63,4 +63,4 @@ nginx -g "daemon off;"\n\
 ' > /start.sh && chmod +x /start.sh
 
 # Start both nginx and Next.js dev server
-CMD ["/start.sh"] 
+CMD ["/bin/bash", "/start.sh"] 
