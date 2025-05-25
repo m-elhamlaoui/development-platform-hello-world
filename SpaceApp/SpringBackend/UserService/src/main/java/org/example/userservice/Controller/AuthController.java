@@ -52,6 +52,7 @@ public class AuthController {
         try {
             // Check if user already exists
             if (userRepository.findByEmail(user.getEmail()) != null) {
+                System.out.println(user.getEmail()+"hi");
                 return ResponseEntity.badRequest().body("User already exists");
             }
 
