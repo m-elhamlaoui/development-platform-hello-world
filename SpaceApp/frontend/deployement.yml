@@ -53,8 +53,12 @@ spec:
           volumeMounts:
             - name: logs
               mountPath: /var/log/nginx
+            - name: app
+              mountPath: /app
       volumes:
         - name: logs
+          emptyDir: {}
+        - name: app
           emptyDir: {}
 ---
 apiVersion: v1
