@@ -32,13 +32,13 @@ pipeline {
         script {
           def tag = "build-${env.BUILD_NUMBER}"
           def servicesList = SERVICES.split()  // split by space if multiple
-          sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
-          sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
+          sh "/snap/bin/kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
+          sh "/snap/bin/kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
 
           for (svc in servicesList) {
             def image = "${DOCKERHUB_USER}/${svc}:${tag}"
             echo "🔄 Updating deployment ${svc} with image ${image}"
-            sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+            sh "/snap/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
           }
         }
       }
