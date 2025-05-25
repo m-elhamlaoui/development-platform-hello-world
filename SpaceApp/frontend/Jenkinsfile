@@ -40,7 +40,6 @@ pipeline {
               sh "docker push ${image}"
             }
           }
-          // Optional logout
           sh "docker logout"
         }
       }
