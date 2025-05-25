@@ -47,10 +47,11 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
                     sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
                     script {
+                        def tag = "build-${env.BUILD_NUMBER}"
                         for (int i = 0; i < SERVICES.size(); i++) {
                             def svc = SERVICES[i]
                             def dirName = DIRECTORIES[i]
-                            def image = "${DOCKERHUB_USER}/${svc}:latest"
+                            def image = "${DOCKERHUB_USER}/${svc}:${tag}"
                             dir("SpaceApp/SpringBackend/${dirName}") {
                                 sh "docker build -t ${image} ."
                                 sh "docker push ${image}"
@@ -64,9 +65,14 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                // For K3s, just use 'kubectl' (it's a symlink to 'k3s kubectl')
-                sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                script {
+                    def tag = "build-${env.BUILD_NUMBER}"
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def image = "${DOCKERHUB_USER}/${svc}:${tag}"
+                        sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+                    }
+                }
             }
         }
     }
