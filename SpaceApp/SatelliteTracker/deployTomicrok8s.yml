@@ -12,8 +12,8 @@ spec:
       labels:
         app: django-service
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: worker1
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: django-service
           image: youssefbouraoui1/django-app:latest

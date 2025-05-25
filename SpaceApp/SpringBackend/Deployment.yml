@@ -1,4 +1,4 @@
-# === Deployments ===
+# === GATEWAY SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,6 +13,8 @@ spec:
       labels:
         app: gateway-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: gateway-service
           image: youssefbouraoui1/gateway-service:latest
@@ -23,6 +25,8 @@ spec:
         - name: regcred
 
 ---
+
+# === CONFIG SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,6 +41,8 @@ spec:
       labels:
         app: config-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: config-service
           image: youssefbouraoui1/config-service:latest
@@ -47,6 +53,8 @@ spec:
         - name: regcred
 
 ---
+
+# === DISCOVERY SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -61,6 +69,8 @@ spec:
       labels:
         app: discovery-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: discovery-service
           image: youssefbouraoui1/discovery-service:latest
@@ -71,6 +81,8 @@ spec:
         - name: regcred
 
 ---
+
+# === HEALTH MONITORING SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -85,6 +97,8 @@ spec:
       labels:
         app: health-monitoring-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: health-monitoring-service
           image: youssefbouraoui1/health-monitoring-service:latest
@@ -95,6 +109,8 @@ spec:
         - name: regcred
 
 ---
+
+# === FETCHING DATA SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -109,6 +125,8 @@ spec:
       labels:
         app: fetching-data-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: fetching-data-service
           image: youssefbouraoui1/fetching-data-service:latest
@@ -119,6 +137,8 @@ spec:
         - name: regcred
 
 ---
+
+# === END OF LIFE SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -133,6 +153,8 @@ spec:
       labels:
         app: end-of-life-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: end-of-life-service
           image: youssefbouraoui1/end-of-life-service:latest
@@ -143,6 +165,8 @@ spec:
         - name: regcred
 
 ---
+
+# === COLLISION SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -157,6 +181,8 @@ spec:
       labels:
         app: collision-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: collision-service
           image: youssefbouraoui1/collision-service:latest
@@ -167,6 +193,8 @@ spec:
         - name: regcred
 
 ---
+
+# === USER SERVICE ===
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -181,6 +209,8 @@ spec:
       labels:
         app: user-service
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: user-service
           image: youssefbouraoui1/user-service:latest
