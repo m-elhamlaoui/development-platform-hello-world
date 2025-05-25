@@ -9,4 +9,5 @@ spec:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-  type: LoadBalancer
+      nodePort: 31238 # Optional: specify a port between 30000–32767
+  type: NodePort
