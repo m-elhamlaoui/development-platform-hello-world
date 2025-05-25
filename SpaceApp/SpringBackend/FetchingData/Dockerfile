@@ -2,7 +2,7 @@ FROM openjdk:21-slim
 
 # Install debugging tools
 RUN apt-get update && apt-get install -y \
-    netcat \
+    netcat-openbsd \
     telnet \
     dnsutils \
     iputils-ping \
@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     vim \
     less \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Copy your app
 VOLUME /tmp
