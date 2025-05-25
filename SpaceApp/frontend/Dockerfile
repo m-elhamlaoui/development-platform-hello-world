@@ -26,5 +26,12 @@ RUN apk add --no-cache nodejs npm
 # Expose ports
 EXPOSE 80 3000
 
+# Create a script to start both services
+RUN echo '#!/bin/sh\n\
+cd /app\n\
+npm run dev -- -H 0.0.0.0 &\n\
+nginx -g "daemon off;"\n\
+' > /start.sh && chmod +x /start.sh
+
 # Start both nginx and Next.js dev server
-CMD sh -c "cd /app && npm run dev -- -H 0.0.0.0 & nginx -g 'daemon off;'" 
+CMD ["/start.sh"] 
