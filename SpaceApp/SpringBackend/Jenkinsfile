@@ -15,6 +15,7 @@ pipeline {
         DOCKERHUB_USER = 'youssefbouraoui1'
         JAVA17 = '/usr/lib/jvm/java-17-openjdk-amd64'
         JAVA21 = '/usr/lib/jvm/java-21-openjdk-amd64'
+        KUBECONFIG = '/var/lib/jenkins/.kube/config'
     }
 
     stages {
@@ -64,8 +65,8 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 // For K3s, just use 'kubectl' (it's a symlink to 'k3s kubectl')
-                sh "kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                sh "kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                sh "/usr/local/bin/kubectl kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                sh "/usr/local/bin/kubectl kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
         }
     }
