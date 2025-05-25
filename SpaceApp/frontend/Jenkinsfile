@@ -4,6 +4,7 @@ pipeline {
   environment {
     IMAGE_NAME = 'frontend_spaceapp'
     DOCKER_TAG = 'latest'
+    KUBECONFIG = '/var/lib/jenkins/.kube/config' // Assumes Jenkins agent has access
   }
 
   stages {
@@ -24,11 +25,13 @@ pipeline {
     stage('Push to Docker Hub') {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
-          sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+          sh '''
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin
+          '''
           dir('SpaceApp/frontend') {
             sh "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${DOCKER_TAG}"
           }
-          sh "docker logout"
+          sh 'docker logout'
         }
       }
     }
@@ -36,10 +39,15 @@ pipeline {
     stage('Deploy to Kubernetes') {
       steps {
         dir('SpaceApp/frontend') {
-          echo 'Deploying frontend to Kubernetes...'
-          // Assumes KUBECONFIG is already set or defaults to ~/.kube/config
-          sh 'kubectl apply -f deployement.yml --validate=false'
-          sh 'kubectl apply -f services.yml'
+          echo '🚀 Deploying frontend to Kubernetes...'
+          sh '''
+            if ! kubectl cluster-info; then
+              echo "❌ Unable to connect to Kubernetes cluster. Check KUBECONFIG or credentials."
+              exit 1
+            fi
+            kubectl apply -f deployement.yml --validate=false
+            kubectl apply -f services.yml
+          '''
         }
       }
     }
