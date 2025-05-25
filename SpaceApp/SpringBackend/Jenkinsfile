@@ -56,7 +56,6 @@ pipeline {
                             }
                         }
                     }
-                    // Optional: log out from Docker Hub for security
                     sh "docker logout"
                 }
             }
@@ -64,15 +63,16 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                // For K3s, just use 'kubectl' (it's a symlink to 'k3s kubectl')
+                sh "sudo kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                sh "sudo kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
         }
     }
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully to Kubernetes.'
+            echo '✅ Spring Boot app deployed successfully to K3s!'
         }
         failure {
             echo '❌ Deployment failed.'
