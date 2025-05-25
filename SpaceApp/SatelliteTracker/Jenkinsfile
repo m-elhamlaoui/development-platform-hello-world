@@ -4,8 +4,8 @@ pipeline {
   environment {
     IMAGE_NAME = 'youssefbouraoui1/django-service'
     DOCKERHUB_USER = 'youssefbouraoui1'
-    // Define services list if you want to deploy multiple services
-    SERVICES = 'django-service'  // space separated if more than one
+    SERVICES = 'django-service'
+    KUBECONFIG_PATH = '/var/lib/jenkins/.kube/config'  // <- Adapté à MicroK8s
   }
 
   stages {
@@ -14,9 +14,10 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
           script {
             def tag = "build-${env.BUILD_NUMBER}"
+            def image = "${DOCKERHUB_USER}/django-service:${tag}"
+
             sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
             dir('SpaceApp/SatelliteTracker') {
-              def image = "${DOCKERHUB_USER}/django-service:${tag}"
               echo "🔨 Building backend Docker image: ${image}"
               sh "docker build -t ${image} ."
               sh "docker push ${image}"
@@ -27,18 +28,21 @@ pipeline {
       }
     }
 
-    stage('Deploy to Kubernetes') {
+    stage('Deploy to MicroK8s') {
       steps {
         script {
           def tag = "build-${env.BUILD_NUMBER}"
-          def servicesList = SERVICES.split()  // split by space if multiple
-          sh "/snap/bin/kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
-          sh "/snap/bin/kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
+          def servicesList = SERVICES.split()
+          def kubeconfig = "KUBECONFIG=${KUBECONFIG_PATH}"
+
+          // Apply deployment and service YAMLs
+          sh "${kubeconfig} kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
+          sh "${kubeconfig} kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
 
           for (svc in servicesList) {
             def image = "${DOCKERHUB_USER}/${svc}:${tag}"
             echo "🔄 Updating deployment ${svc} with image ${image}"
-            sh "/snap/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+            sh "${kubeconfig} kubectl set image deployment/${svc} ${svc}=${image} || true"
           }
         }
       }
