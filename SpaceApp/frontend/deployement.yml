@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: frontend_spaceapp
+          image: youssefbouraoui1/frontend_spaceapp:latest
           ports:
             - containerPort: 3000
