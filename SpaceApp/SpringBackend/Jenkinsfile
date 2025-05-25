@@ -70,6 +70,8 @@ pipeline {
                     for (int i = 0; i < SERVICES.size(); i++) {
                         def svc = SERVICES[i]
                         def image = "${DOCKERHUB_USER}/${svc}:${tag}"
+                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SpringBackend/Services.yml"
                         sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
                     }
                 }

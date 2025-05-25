@@ -197,7 +197,7 @@ spec:
         app: user-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: worker1
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: user-service
           image: youssefbouraoui1/user-service:latest
