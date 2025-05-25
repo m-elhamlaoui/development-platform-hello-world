@@ -29,72 +29,75 @@ RUN apk add --no-cache nodejs npm curl procps bash
 EXPOSE 80 3000
 
 # Create startup script
-RUN echo '#!/bin/bash\n\
-set -ex\n\
-\n\
-echo "Current directory: $(pwd)"\n\
-echo "Listing /app directory:"\n\
-ls -la /app\n\
-\n\
-echo "Starting Next.js development server..."\n\
-cd /app\n\
-\n\
-# Check if package.json exists\n\
-if [ ! -f "package.json" ]; then\n\
-  echo "Error: package.json not found in /app"\n\
-  exit 1\n\
-fi\n\
-\n\
-# Remove circular dependency if it exists\n\
-sed -i \'/"my-v0-project": "file:",/d\' package.json\n\
-\n\
-# Install dependencies\n\
-echo "Installing dependencies..."\n\
-npm ci\n\
-\n\
-# Start Next.js in the background\n\
-echo "Running npm run dev..."\n\
-npm run dev -- -H 0.0.0.0 &\n\
-NEXT_PID=$!\n\
-\n\
-# Function to check if Next.js is ready\n\
-check_nextjs() {\n\
-  curl -s http://localhost:3000 > /dev/null\n\
-  return $?\n\
-}\n\
-\n\
-# Wait for Next.js to be ready\n\
-echo "Waiting for Next.js to be ready..."\n\
-for i in $(seq 1 30); do\n\
-  if check_nextjs; then\n\
-    echo "Next.js is ready!"\n\
-    break\n\
-  fi\n\
-  echo "Attempt $i: Waiting for Next.js..."\n\
-  sleep 2\n\
-  if [ $i -eq 30 ]; then\n\
-    echo "Next.js failed to start within 60 seconds"\n\
-    exit 1\n\
-  fi\n\
-done\n\
-\n\
-echo "Starting Nginx..."\n\
-nginx -g "daemon off;" &\n\
-NGINX_PID=$!\n\
-\n\
-# Keep the container running and monitor both processes\n\
-while true; do\n\
-  if ! kill -0 $NEXT_PID 2>/dev/null; then\n\
-    echo "Next.js process died, exiting..."\n\
-    exit 1\n\
-  fi\n\
-  if ! kill -0 $NGINX_PID 2>/dev/null; then\n\
-    echo "Nginx process died, exiting..."\n\
-    exit 1\n\
-  fi\n\
-  sleep 5\n\
-done\n\
-' > /start.sh && chmod +x /start.sh
+RUN cat > /start.sh << 'EOF'
+#!/bin/bash
+set -ex
+
+echo "Current directory: $(pwd)"
+echo "Listing /app directory:"
+ls -la /app
+
+echo "Starting Next.js development server..."
+cd /app
+
+# Check if package.json exists
+if [ ! -f "package.json" ]; then
+  echo "Error: package.json not found in /app"
+  exit 1
+fi
+
+# Remove circular dependency if it exists
+sed -i '/"my-v0-project": "file:",/d' package.json
+
+# Install dependencies
+echo "Installing dependencies..."
+npm ci
+
+# Start Next.js in the background
+echo "Running npm run dev..."
+npm run dev -- -H 0.0.0.0 &
+NEXT_PID=$!
+
+# Function to check if Next.js is ready
+check_nextjs() {
+  curl -s http://localhost:3000 > /dev/null
+  return $?
+}
+
+# Wait for Next.js to be ready
+echo "Waiting for Next.js to be ready..."
+for i in $(seq 1 30); do
+  if check_nextjs; then
+    echo "Next.js is ready!"
+    break
+  fi
+  echo "Attempt $i: Waiting for Next.js..."
+  sleep 2
+  if [ $i -eq 30 ]; then
+    echo "Next.js failed to start within 60 seconds"
+    exit 1
+  fi
+done
+
+echo "Starting Nginx..."
+nginx -g "daemon off;" &
+NGINX_PID=$!
+
+# Keep the container running and monitor both processes
+while true; do
+  if ! kill -0 $NEXT_PID 2>/dev/null; then
+    echo "Next.js process died, exiting..."
+    exit 1
+  fi
+  if ! kill -0 $NGINX_PID 2>/dev/null; then
+    echo "Nginx process died, exiting..."
+    exit 1
+  fi
+  sleep 5
+done
+EOF
+
+RUN chmod +x /start.sh
 
 # Start both nginx and Next.js dev server
 CMD ["/bin/bash", "/start.sh"] 
