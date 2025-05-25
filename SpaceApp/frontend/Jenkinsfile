@@ -15,9 +15,9 @@ pipeline {
     }
 
     stage('Build Docker Image') {
-      when {
-        changeset "SpaceApp/frontend/**"
-      }
+      //when {
+        //changeset "SpaceApp/frontend/**"
+      //}
       steps {
         dir('SpaceApp/frontend') {
           script {
@@ -28,9 +28,9 @@ pipeline {
     }
 
     stage('Push to Docker Hub') {
-      when {
-        changeset "SpaceApp/frontend/**"
-      }
+     // when {
+      //  changeset "SpaceApp/frontend/**"
+      //}
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
           sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
@@ -40,21 +40,20 @@ pipeline {
               sh "docker push ${image}"
             }
           }
-          // Optional logout
           sh "docker logout"
         }
       }
     }
 
     stage('Deploy to Kubernetes') {
-      when {
-        changeset "SpaceApp/frontend/**"
-      }
+     // when {
+     //   changeset "SpaceApp/frontend/**"
+     // }
       steps {
         dir('SpaceApp/frontend') {
           script {
             echo 'Deploying frontend to Kubernetes...'
-            sh 'kubectl apply -f deployement.yml'
+            sh 'kubectl apply -f deployement.yml --validate=false'
             sh 'kubectl apply -f services.yml'
           }
         }
