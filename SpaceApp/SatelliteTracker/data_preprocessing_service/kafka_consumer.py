@@ -12,14 +12,14 @@ data = pd.read_csv(data_path)
 
 def start_kafka_consumer():
     consumer_config = {
-        'bootstrap.servers': 'localhost:9092', 
+        'bootstrap.servers': '10.1.6.146:9093', 
         'group.id': 'tle_data_group',
         'auto.offset.reset': 'earliest'
     }
 
     consumer = Consumer(consumer_config)
     topic = 'dataUpdates'  
-    producer = Producer({'bootstrap.servers': 'localhost:9092'})  
+    producer = Producer({'bootstrap.servers': '10.1.6.146:9093'})  
 
     try:
         consumer.subscribe([topic])

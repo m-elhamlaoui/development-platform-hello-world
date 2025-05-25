@@ -8,7 +8,7 @@ with open("./eol_service/my_model.pkl", "rb") as f:
     model = pickle.load(f)
 
 # Initialize Kafka Producer
-producer = Producer({'bootstrap.servers': 'localhost:9092'})
+producer = Producer({'bootstrap.servers': '10.1.6.146:9093'})
 
 def extract_features(data):
     """
@@ -57,7 +57,7 @@ def start_kafka_consumer():
     print("✅ Kafka EOL Consumer is starting...")
 
     consumer = Consumer({
-        'bootstrap.servers': 'localhost:9092',
+        'bootstrap.servers': '10.1.6.146:9093',
         'group.id': 'tle_data_group',
         'auto.offset.reset': 'earliest'
     })

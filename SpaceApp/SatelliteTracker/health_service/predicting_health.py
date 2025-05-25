@@ -10,14 +10,14 @@ from django.conf import settings
 
 def start_health_data_consumer():
     consumer_config = {
-        'bootstrap.servers': 'localhost:9092',
+        'bootstrap.servers': '10.1.6.146:9093',
         'group.id': 'tle_data_group',
         'auto.offset.reset': 'earliest'
     }
 
     consumer = Consumer(consumer_config)
     topic = 'health'
-    producer = Producer({'bootstrap.servers': 'localhost:9092'})
+    producer = Producer({'bootstrap.servers': '10.1.6.146:9093'})
     try:
         consumer.subscribe([topic])
         print(f"Subscribed to topic: {topic}")
