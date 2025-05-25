@@ -64,8 +64,8 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 // For K3s, just use 'kubectl' (it's a symlink to 'k3s kubectl')
-                sh "sudo kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
-                sh "sudo kubectl apply -f SpaceApp/SpringBackend/Services.yml"
+                sh "kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
+                sh "kubectl apply -f SpaceApp/SpringBackend/Services.yml"
             }
         }
     }
