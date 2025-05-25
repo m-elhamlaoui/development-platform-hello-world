@@ -24,21 +24,38 @@ spec:
             httpGet:
               path: /
               port: 80
-            initialDelaySeconds: 5
+            initialDelaySeconds: 60
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
           livenessProbe:
             httpGet:
               path: /
               port: 80
-            initialDelaySeconds: 15
+            initialDelaySeconds: 90
             periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
               memory: "512Mi"
               cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: NEXT_PUBLIC_API_URL
+              value: "http://172.30.195.35:30600"
+            - name: DEBUG
+              value: "*"
+          volumeMounts:
+            - name: logs
+              mountPath: /var/log/nginx
+      volumes:
+        - name: logs
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
