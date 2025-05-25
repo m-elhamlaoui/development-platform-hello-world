@@ -27,4 +27,4 @@ RUN apk add --no-cache nodejs npm
 EXPOSE 80 3000
 
 # Start both nginx and Next.js dev server
-CMD sh -c "cd /app && npm run dev & nginx -g 'daemon off;'" 
+CMD sh -c "cd /app && npm run dev -- -H 0.0.0.0 & nginx -g 'daemon off;'" 
