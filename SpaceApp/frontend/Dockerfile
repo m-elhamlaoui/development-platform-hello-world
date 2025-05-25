@@ -29,75 +29,65 @@ RUN apk add --no-cache nodejs npm curl procps bash
 EXPOSE 80 3000
 
 # Create startup script
-RUN cat > /start.sh << 'EOF'
-#!/bin/bash
-set -ex
-
-echo "Current directory: $(pwd)"
-echo "Listing /app directory:"
-ls -la /app
-
-echo "Starting Next.js development server..."
-cd /app
-
-# Check if package.json exists
-if [ ! -f "package.json" ]; then
-  echo "Error: package.json not found in /app"
-  exit 1
-fi
-
-# Remove circular dependency if it exists
-sed -i '/"my-v0-project": "file:",/d' package.json
-
-# Install dependencies
-echo "Installing dependencies..."
-npm ci
-
-# Start Next.js in the background
-echo "Running npm run dev..."
-npm run dev -- -H 0.0.0.0 &
-NEXT_PID=$!
-
-# Function to check if Next.js is ready
-check_nextjs() {
-  curl -s http://localhost:3000 > /dev/null
-  return $?
-}
-
-# Wait for Next.js to be ready
-echo "Waiting for Next.js to be ready..."
-for i in $(seq 1 30); do
-  if check_nextjs; then
-    echo "Next.js is ready!"
-    break
-  fi
-  echo "Attempt $i: Waiting for Next.js..."
-  sleep 2
-  if [ $i -eq 30 ]; then
-    echo "Next.js failed to start within 60 seconds"
-    exit 1
-  fi
-done
-
-echo "Starting Nginx..."
-nginx -g "daemon off;" &
-NGINX_PID=$!
-
-# Keep the container running and monitor both processes
-while true; do
-  if ! kill -0 $NEXT_PID 2>/dev/null; then
-    echo "Next.js process died, exiting..."
-    exit 1
-  fi
-  if ! kill -0 $NGINX_PID 2>/dev/null; then
-    echo "Nginx process died, exiting..."
-    exit 1
-  fi
-  sleep 5
-done
-EOF
-
-RUN chmod +x /start.sh
+RUN echo '#!/bin/bash' > /start.sh && \
+    echo 'set -ex' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Current directory: $(pwd)"' >> /start.sh && \
+    echo 'echo "Listing /app directory:"' >> /start.sh && \
+    echo 'ls -la /app' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Starting Next.js development server..."' >> /start.sh && \
+    echo 'cd /app' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'if [ ! -f "package.json" ]; then' >> /start.sh && \
+    echo '  echo "Error: package.json not found in /app"' >> /start.sh && \
+    echo '  exit 1' >> /start.sh && \
+    echo 'fi' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'sed -i \'/"my-v0-project": "file:",/d\' package.json' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Installing dependencies..."' >> /start.sh && \
+    echo 'npm ci' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Running npm run dev..."' >> /start.sh && \
+    echo 'npm run dev -- -H 0.0.0.0 &' >> /start.sh && \
+    echo 'NEXT_PID=$!' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'check_nextjs() {' >> /start.sh && \
+    echo '  curl -s http://localhost:3000 > /dev/null' >> /start.sh && \
+    echo '  return $?' >> /start.sh && \
+    echo '}' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Waiting for Next.js to be ready..."' >> /start.sh && \
+    echo 'for i in $(seq 1 30); do' >> /start.sh && \
+    echo '  if check_nextjs; then' >> /start.sh && \
+    echo '    echo "Next.js is ready!"' >> /start.sh && \
+    echo '    break' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo '  echo "Attempt $i: Waiting for Next.js..."' >> /start.sh && \
+    echo '  sleep 2' >> /start.sh && \
+    echo '  if [ $i -eq 30 ]; then' >> /start.sh && \
+    echo '    echo "Next.js failed to start within 60 seconds"' >> /start.sh && \
+    echo '    exit 1' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo 'done' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'echo "Starting Nginx..."' >> /start.sh && \
+    echo 'nginx -g "daemon off;" &' >> /start.sh && \
+    echo 'NGINX_PID=$!' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo 'while true; do' >> /start.sh && \
+    echo '  if ! kill -0 $NEXT_PID 2>/dev/null; then' >> /start.sh && \
+    echo '    echo "Next.js process died, exiting..."' >> /start.sh && \
+    echo '    exit 1' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo '  if ! kill -0 $NGINX_PID 2>/dev/null; then' >> /start.sh && \
+    echo '    echo "Nginx process died, exiting..."' >> /start.sh && \
+    echo '    exit 1' >> /start.sh && \
+    echo '  fi' >> /start.sh && \
+    echo '  sleep 5' >> /start.sh && \
+    echo 'done' >> /start.sh && \
+    chmod +x /start.sh
 
 # Start both nginx and Next.js dev server
 CMD ["/bin/bash", "/start.sh"] 
