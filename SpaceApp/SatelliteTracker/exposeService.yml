@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: satellite-service
+  name: django-service
 spec:
   selector:
-    app: satellite-app
+    app: django-service
   ports:
     - protocol: TCP
       port: 80
