@@ -15,7 +15,7 @@ spec:
         app: gateway-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: instance-20250524-2358
+        kubernetes.io/hostname: worker1
       containers:
         - name: gateway-service
           image: youssefbouraoui1/gateway-service:latest
@@ -40,7 +40,7 @@ spec:
         app: config-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: instance-20250524-2358
+        kubernetes.io/hostname: worker1
       containers:
         - name: config-service
           image: youssefbouraoui1/config-service:latest
@@ -65,7 +65,7 @@ spec:
         app: discovery-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: instance-20250524-2358
+        kubernetes.io/hostname: worker1
       containers:
         - name: discovery-service
           image: youssefbouraoui1/discovery-service:latest
@@ -140,7 +140,7 @@ spec:
         app: end-of-life-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: worker1
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: end-of-life-service
           image: youssefbouraoui1/end-of-life-service:latest
@@ -165,7 +165,7 @@ spec:
         app: collision-service
     spec:
       nodeSelector:
-        kubernetes.io/hostname: worker1
+        kubernetes.io/hostname: instance-20250524-2358
       containers:
         - name: collision-service
           image: youssefbouraoui1/collision-service:latest

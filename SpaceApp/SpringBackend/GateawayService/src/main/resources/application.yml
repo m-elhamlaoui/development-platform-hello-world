@@ -21,29 +21,29 @@ spring:
           enabled: false
       routes:
         - id: health-monitoring-service
-          uri: http://localhost:8081
+          uri: http://health-monitoring-service:8081
           predicates:
             - Path=/api/v1/health/**
 
         - id: fetching-data-service
-          uri: http://localhost:8082
+          uri: http://fetching-data-service:8082
           predicates:
-            - Path=/api/v1/users/** ,/api/v1/satellites/**
+            - Path=/api/v1/users/**,/api/v1/satellites/**
 
         - id: collision-service
-          uri: http://localhost:8003
+          uri: http://collision-service:8003
           predicates:
             - Path=/api/collisions/**
 
         - id: end-of-life-service
-          uri: http://localhost:8005
+          uri: http://end-of-life-service:8005
           predicates:
-            - Path=/api/eol/**, /api/satellites/**
+            - Path=/api/eol/**,/api/satellites/**
 
         - id: user-service
-          uri: http://localhost:8085
+          uri: http://user-service:8085
           predicates:
-            - Path=/api/users/**, /api/auth/**
+            - Path=/api/users/**,/api/auth/**
           filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin, RETAIN_FIRST
             - DedupeResponseHeader=Access-Control-Allow-Credentials, RETAIN_FIRST
@@ -56,7 +56,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: http://discovery-service:8761/eureka/
 logging:
   level:
     org.springframework.cloud.gateway: DEBUG
@@ -65,4 +65,3 @@ management:
     web:
       exposure:
         include: "*"
-
