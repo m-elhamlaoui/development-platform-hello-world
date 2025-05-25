@@ -2,7 +2,8 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = 'youssefbouraoui1/django-service:latest'
+    IMAGE_NAME = 'youssefbouraoui1/django-service'
+    DOCKERHUB_USER='youssefbouraoui1'
   }
 
   stages {
@@ -10,7 +11,9 @@ pipeline {
       steps {
         withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_TOKEN')]) {
           sh "echo $DOCKERHUB_TOKEN | docker login -u $DOCKERHUB_USER --password-stdin"
+          def tag = "build-${env.BUILD_NUMBER}"
           dir('SpaceApp/SatelliteTracker') {
+            def image = "${DOCKERHUB_USER}/django-service:${tag}"
             echo '🔨 Building backend Docker image...'
             sh "docker build -t ${IMAGE_NAME} ."
             sh "docker push ${IMAGE_NAME}"
@@ -21,6 +24,23 @@ pipeline {
       }
     }
   }
+
+  
+        stage('Deploy to Kubernetes') {
+            steps {
+                script {
+                    def tag = "build-${env.BUILD_NUMBER}"
+                    for (int i = 0; i < SERVICES.size(); i++) {
+                        def svc = SERVICES[i]
+                        def image = "${DOCKERHUB_USER}/${svc}:${tag}"
+                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/deployTomicrok8s.yml"
+                        sh "/usr/local/bin/kubectl apply -f SpaceApp/SatelliteTracker/exposeService.yml"
+                        sh "/usr/local/bin/kubectl set image deployment/${svc} ${svc}=${image} || true"
+                    }
+                }
+            }
+        }
+    }
 
   post {
     success {
