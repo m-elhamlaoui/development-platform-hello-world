@@ -19,6 +19,7 @@ spec:
       containers:
         - name: gateway-service
           image: youssefbouraoui1/gateway-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
       imagePullSecrets:
@@ -44,6 +45,7 @@ spec:
       containers:
         - name: config-service
           image: youssefbouraoui1/config-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8888
       imagePullSecrets:
@@ -69,6 +71,7 @@ spec:
       containers:
         - name: discovery-service
           image: youssefbouraoui1/discovery-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8761
       imagePullSecrets:
@@ -94,6 +97,7 @@ spec:
       containers:
         - name: health-monitoring-service
           image: youssefbouraoui1/health-monitoring-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8081
       imagePullSecrets:
@@ -119,6 +123,7 @@ spec:
       containers:
         - name: fetching-data-service
           image: youssefbouraoui1/fetching-data-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8082
       imagePullSecrets:
@@ -144,6 +149,7 @@ spec:
       containers:
         - name: end-of-life-service
           image: youssefbouraoui1/end-of-life-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8005
       imagePullSecrets:
@@ -169,6 +175,7 @@ spec:
       containers:
         - name: collision-service
           image: youssefbouraoui1/collision-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8003
       imagePullSecrets:
@@ -194,6 +201,7 @@ spec:
       containers:
         - name: user-service
           image: youssefbouraoui1/user-service:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8085
           resources:
