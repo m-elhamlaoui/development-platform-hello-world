@@ -12,13 +12,11 @@ spec:
       labels:
         app: django-service
     spec:
-      hostNetwork: true
-      dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: django-service
-          image: youssefbouraoui1/django-app:latest
+          image: youssefbouraoui1/django-service:build-11  # 🟡 Mets à jour dynamiquement si besoin
           ports:
-          - containerPort: 8000
+            - containerPort: 9003  # ✅ Correspond à ton Dockerfile
           env:
             - name: KAFKA_BOOTSTRAP_SERVERS
               value: kafka.default.svc.cluster.local:9092
