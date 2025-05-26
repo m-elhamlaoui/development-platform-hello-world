@@ -170,6 +170,112 @@ interface DisposalOption {
   complianceNote: string;
 }
 
+// 1. Add static data for all satellites
+const SATELLITE_DATA = {
+  "42826": {
+    health: {
+      satelliteName: "NORSAT 1",
+      timeSinceLaunch: 2864,
+      orbitalAltitude: 585,
+      batteryVoltage: 20.58,
+      solarPanelTemperature: 25.80,
+      attitudeControlError: 3.06,
+      dataTransmissionRate: 79.99,
+      thermalControlStatus: 1,
+      lastUpdate: "2025-05-17 01:31:45"
+    },
+    eol: {
+      prediction: 4183.85,
+      eolDate: "May 25, 2036"
+    }
+  },
+  "49260": {
+    health: {
+      satelliteName: "LANDSAT 9",
+      timeSinceLaunch: 1328,
+      orbitalAltitude: 1604,
+      batteryVoltage: 26.51,
+      solarPanelTemperature: -46.73,
+      attitudeControlError: 1.18,
+      dataTransmissionRate: 55.29,
+      thermalControlStatus: 0,
+      lastUpdate: "2025-05-25 23:59:02"
+    },
+    eol: {
+      prediction: 3939.67,
+      eolDate: "May 25, 2036"
+    }
+  },
+  "49044": {
+    health: {
+      satelliteName: "ISS (NAUKA)",
+      timeSinceLaunch: 1396,
+      orbitalAltitude: 1133,
+      batteryVoltage: 3.32,
+      solarPanelTemperature: 32.39,
+      attitudeControlError: 1.60,
+      dataTransmissionRate: 11.68,
+      thermalControlStatus: 0,
+      lastUpdate: "2025-05-25 23:59:02"
+    },
+    eol: {
+      prediction: 3552.94,
+      eolDate: "May 25, 2035"
+    }
+  },
+  "48272": {
+    health: {
+      satelliteName: "NORSAT 3",
+      timeSinceLaunch: 1479,
+      orbitalAltitude: 462,
+      batteryVoltage: 27.74,
+      solarPanelTemperature: -14.62,
+      attitudeControlError: 1.87,
+      dataTransmissionRate: 43.00,
+      thermalControlStatus: 1,
+      lastUpdate: "2025-05-25 23:59:02"
+    },
+    eol: {
+      prediction: null,
+      eolDate: "-"
+    }
+  },
+  "43786": {
+    health: {
+      satelliteName: "ITASAT-1",
+      timeSinceLaunch: 2359,
+      orbitalAltitude: 422,
+      batteryVoltage: 28.81,
+      solarPanelTemperature: -25.50,
+      attitudeControlError: 2.60,
+      dataTransmissionRate: 64.40,
+      thermalControlStatus: 1,
+      lastUpdate: "2025-05-19 18:21:35"
+    },
+    eol: {
+      prediction: 3661.94,
+      eolDate: "May 19, 2035"
+    }
+  },
+  "99999": { // PROXIMA I (example)
+    health: {
+      satelliteName: "PROXIMA I",
+      timeSinceLaunch: 1000,
+      orbitalAltitude: 500,
+      batteryVoltage: 25.00,
+      solarPanelTemperature: 20.00,
+      attitudeControlError: 2.00,
+      dataTransmissionRate: 50.00,
+      thermalControlStatus: 1,
+      lastUpdate: "2025-05-25 23:59:02"
+    },
+    eol: {
+      prediction: 4000,
+      eolDate: "May 25, 2036"
+    }
+  }
+};
+
 export default function EndOfLifePage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [lastUpdated, setLastUpdated] = useState(new Date())
@@ -231,15 +337,14 @@ const [satellites, setSatellites] = useState<Satellite[]>(() => {
 
 // then compute uniqueOwners yourself
 const uniqueOwners = useMemo(
-  () => Array.from(new Set(satellites.map((s) => s.owner))),
+  () => Array.from(new Set(satellites.map((s) => s.noradId ?? ''))),
   [satellites]
 )
 
 
   useEffect(() => {
     if (!selectedSatellite && satellites.length > 0) {
-      // use the norad_id, not the Mongo id
-      setSelectedSatellite(String(satellites[0].norad_id))
+      setSelectedSatellite(String(satellites[0].noradId))
       console.log("satellites ",satellites)
     }
   }, [satellites, selectedSatellite])
@@ -302,9 +407,9 @@ const uniqueOwners = useMemo(
 
   const satelliteOptions = useMemo(() => {
     return satellites.map(sat => ({
-      key:   sat.id,                    // keep the Mongo id as React key
-      value: String(sat.norad_id),      // the actual value you pass to fetch
-      label: `${sat.name} (${sat.norad_id})`
+      key: sat.id,
+      value: String(sat.noradId),
+      label: `${sat.name} (${sat.noradId})`
     }))
   }, [satellites])
 
@@ -426,6 +531,11 @@ const uniqueOwners = useMemo(
    return d;
  }, [timestamp, totalDays]);
 
+  // 2. Use static data for the selected satellite
+  const current = SATELLITE_DATA[selectedSatellite as string as keyof typeof SATELLITE_DATA] || {};
+  const health = current.health || {};
+  const eol = current.eol || {};
+
   return (
     <div className="flex min-h-screen flex-col bg-[#0f1520] text-white">
       {/* Header */}
@@ -539,9 +649,13 @@ const uniqueOwners = useMemo(
 
                 {/* Exact calendar date */}
                 <div>
-                  <div className="text-2xl font-semibold mb-1">
-                    {format(eolDate, "MMMM do, yyyy")}
-                  </div>
+                <div className="text-2xl font-semibold mb-1">
+                
+  {!isNaN(eolDate.getTime())
+    ? format(eolDate, "MMMM do, yyyy")
+    : (eol?.eolDate ?? "N/A")}
+</div>
+
                   <div className="text-sm text-gray-400">Predicted EoL date</div>
                 </div>
               </div>
@@ -661,6 +775,10 @@ const uniqueOwners = useMemo(
                       <span className="text-gray-400">Time Since Launch:</span>
                       <span className="font-medium">{healthStatus?.timeSinceLaunch}</span>
                 </div>
+                <div className="flex justify-between">
+                      <span className="text-gray-400">Last Update:</span>
+                      <span className="font-medium">{health.lastUpdate}</span>
+                </div>
                   </div>
                 </CardContent>
               </Card>
@@ -677,7 +795,14 @@ const uniqueOwners = useMemo(
                   <div className="space-y-2">
                 <div className="flex justify-between">
                       <span className="text-gray-400">Orbital Altitude:</span>
-                      <span className="font-medium">{eolStatus?.orbitalAltitude.toFixed(2)} km</span>
+                      <span className="font-medium">
+  {typeof eolStatus?.orbitalAltitude === "number"
+    ? eolStatus.orbitalAltitude.toFixed(2) + " km"
+    : typeof eol?.orbitalAltitude === "number"
+      ? eol.orbitalAltitude.toFixed(2) + " km"
+      : "N/A"}
+</span>
+
                 </div>
               </div>
             </CardContent>
@@ -695,7 +820,7 @@ const uniqueOwners = useMemo(
               <div className="space-y-2">
                 <div className="flex justify-between">
                       <span className="text-gray-400">Thermal Control:</span>
-                      <span className="font-medium">{healthStatus?.thermalControlStatus}</span>
+                      <span className="font-medium">{health.thermalControlStatus === 1 ? "Nominal" : "Off"}</span>
                 </div>
                 <div className="flex justify-between">
                       <span className="text-gray-400">Solar Panel Temp:</span>
@@ -703,7 +828,7 @@ const uniqueOwners = useMemo(
                 </div>
                 <div className="flex justify-between">
                       <span className="text-gray-400">Last Update:</span>
-                      <span className="font-medium">{lastUpdated.toLocaleString()}</span>
+                      <span className="font-medium">{health.lastUpdate}</span>
                 </div>
               </div>
             </CardContent>
@@ -989,7 +1114,7 @@ const uniqueOwners = useMemo(
                     >
                       <CardHeader className="pb-2 bg-gradient-to-r from-[#1a2234] to-[#1a2234]/50">
                         <CardTitle className="text-lg flex items-center">
-                          <option.icon className="h-5 w-5 mr-2 text-blue-400" />
+                          {/* Remove option.icon and use a static icon if needed */}
                           {option.title}
                         </CardTitle>
                       </CardHeader>
