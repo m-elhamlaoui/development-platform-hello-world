@@ -34,10 +34,10 @@ public class HealthStatusController {
         HealthStatusDTO dto = healthStatusService.getLatestStatusForSatellite(satelliteId);
 
         if (dto != null) {
-            System.out.println("✅ Found HealthStatusDTO: " + dto);
+            System.out.println("Found HealthStatusDTO: " + dto);
             return ResponseEntity.ok(dto);
         } else {
-            System.out.println("❌ No status found for NORAD ID: " + satelliteId);
+            System.out.println("No status found for NORAD ID: " + satelliteId);
             return ResponseEntity.notFound().build();
         }
     }

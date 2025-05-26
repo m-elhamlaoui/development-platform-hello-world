@@ -40,11 +40,9 @@ public class ConsumingData {
             healthStatusData.setDataTransmissionRate(Float.parseFloat(features.get("data_transmission_rate").toString()));
             healthStatusData.setThermalControlStatus((Integer) features.get("thermal_control_status"));
 
-// Now set prediction and probability
             healthStatusData.setPrediction(Float.parseFloat(receivedData.get("prediction").toString()));
             healthStatusData.setProbability(Float.parseFloat(receivedData.get("probability").toString()));
 
-// Explanation parsing remains the same
             Map<String, Object> rawExplanation = (Map<String, Object>) receivedData.get("explanation");
             Map<String, Float> explanation = rawExplanation.entrySet().stream()
                     .collect(Collectors.toMap(
