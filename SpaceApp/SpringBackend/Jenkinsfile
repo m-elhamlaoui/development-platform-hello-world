@@ -72,10 +72,10 @@ pipeline {
                         def svc = SERVICES[i]
                         def image = "${env.DOCKERHUB_USER}/${svc}:${tag}"
 
-                        if (i == 0) {
+                        /* if (i == 0) {
                             sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Deployment.yml"
                             sh "microk8s kubectl apply -f SpaceApp/SpringBackend/Services.yml"
-                        }
+                        } */
 
                         sh "microk8s kubectl set image deployment/${svc} ${svc}=${image} || true"
                     }
