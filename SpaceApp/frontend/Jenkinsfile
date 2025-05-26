@@ -42,12 +42,12 @@ pipeline {
         dir('SpaceApp/frontend') {
           echo '🚀 Deploying frontend to Kubernetes...'
           sh '''
-            if ! kubectl cluster-info; then
+            if ! microk8s kubectl cluster-info; then
               echo "❌ Unable to connect to Kubernetes cluster. Check KUBECONFIG or credentials."
               exit 1
             fi
-            kubectl apply -f deployement.yml --validate=false
-            kubectl apply -f services.yml
+            microk8s kubectl apply -f deployement.yml --validate=false
+            microk8s kubectl apply -f services.yml
           '''
         }
       }
