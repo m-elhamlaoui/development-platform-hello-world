@@ -103,7 +103,7 @@ Demonstrates the data flow through the microservices(healthStatusFlow):
 
 Illustrates how different actors (admin, user) interact with the system.
 
-![Use Case Diagram](./Diagrammes uml/usecase-diagram.png)
+![Use Case Diagram](./DiagrammesUml/usecase-diagram.png)
 
 ---
 
