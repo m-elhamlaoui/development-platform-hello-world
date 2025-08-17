@@ -1,0 +1,40 @@
+pipeline{
+    agent any
+
+    when {
+        anyOf {
+            changeset "SpaceApp/SpringBackend/UserService/**"
+            changeset "SpaceApp/SpringBackend/Deployment.yml"  
+            changeset "SpaceApp/SpringBackend/Services.yml"
+        }
+    }
+
+    stages {
+        stage ("building jar and tests"){
+            steps{
+                sh "mvn clean package -DskipTests=true"
+                sh "mvn test" 
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage ("building image"){
+            steps{
+                withCredentials([usernamePassword(credentialsId: 'dockerHubCreds',usernameVariable:'DOCKERHUB_USER',passwordVariable:'DOCKERHUB_TOKEN')]){
+                    def tag = env.BUILD_NUMBER
+                    def image = "\$DOCKERHUB_USER/health-monitoring-service:${tag}"
+                    script {
+                        sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
+                        sh "docker build -t /${image} ."
+                        sh "docker push ${image}"
+                        sh "docker logout"
+                    }
+                }
+            }
+        }
+    }
+}
