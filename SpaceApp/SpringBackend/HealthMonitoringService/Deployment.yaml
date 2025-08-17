@@ -1,0 +1,22 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: health-monitoring-service
+spec:
+  replicas: 1
+  selector: 
+    matchLabels: health-monitoring-service
+  template:
+    metadata:
+      labels: 
+        app: health-monitoring-service
+    spec:
+      containers:
+        - name: health-monitoring-service
+          image: youssefbouraoui1/health-monitoring-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8081
+      imagePullSecrets:
+        - name: regcred

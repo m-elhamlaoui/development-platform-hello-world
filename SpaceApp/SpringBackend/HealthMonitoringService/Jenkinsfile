@@ -36,5 +36,12 @@ pipeline{
                 }
             }
         }
+
+        stage ("deploying to kubernetess"){
+            steps{
+                sh 'kubectl apply -f Deployment.yaml' // we should fix the pull image issue
+                sh 'kubectl apply -f service.yaml'
+            }
+        }
     }
 }
