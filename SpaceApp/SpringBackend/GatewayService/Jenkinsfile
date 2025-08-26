@@ -24,7 +24,7 @@ pipeline{
             steps{
                 withCredentials([usernamePassword(credentialsId:'dockerHubCreds',usernameVariable:'DOCKERHUB_USER',passwordVariable:'DOCKERHUB_TOKEN')]){
                     //def tag = env
-                    def image = "\$DOCKERHUB_USER/gateway-service:latest"
+                    def image = "${DOCKERHUB_USER}/gateway-service:latest"
 
                     script{
                         sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"

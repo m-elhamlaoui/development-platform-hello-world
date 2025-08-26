@@ -3,7 +3,7 @@ pipeline{
 
     when {
         anyOf {
-            changeset "SpaceApp/SpringBackend/UserService/**"
+            changeset "SpaceApp/SpringBackend/HealthMonitoringService/**"
         }
     }
 
@@ -26,7 +26,7 @@ pipeline{
                     //def tag = env.BUILD_NUMBER
                     //to be imrpoved to use a build number now we will stick with static latest
                     //def image = "\$DOCKERHUB_USER/health-monitoring-service:${tag}"
-                    def image = "\$DOCKERHUB_USER/health-monitoring-service:latest"
+                    def image = "${DOCKERHUB_USER}/health-monitoring-service:latest"
 
                     script {
                         sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
