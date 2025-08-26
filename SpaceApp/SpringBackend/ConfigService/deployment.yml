@@ -1,0 +1,23 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-service
+  template:
+    metadata:
+      labels:
+        app: config-service
+    spec:
+      containers:
+        - name: config-service
+          image: youssefbouraoui1/config-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8888
+      imagePullSecrets:
+        - name: regcred
