@@ -4,8 +4,6 @@ pipeline{
     when {
         anyOf {
             changeset "SpaceApp/SpringBackend/UserService/**"
-            changeset "SpaceApp/SpringBackend/Deployment.yml"  
-            changeset "SpaceApp/SpringBackend/Services.yml"
         }
     }
 
@@ -25,11 +23,14 @@ pipeline{
         stage ("building image"){
             steps{
                 withCredentials([usernamePassword(credentialsId: 'dockerHubCreds',usernameVariable:'DOCKERHUB_USER',passwordVariable:'DOCKERHUB_TOKEN')]){
-                    def tag = env.BUILD_NUMBER
-                    def image = "\$DOCKERHUB_USER/health-monitoring-service:${tag}"
+                    //def tag = env.BUILD_NUMBER
+                    //to be imrpoved to use a build number now we will stick with static latest
+                    //def image = "\$DOCKERHUB_USER/health-monitoring-service:${tag}"
+                    def image = "\$DOCKERHUB_USER/health-monitoring-service:latest"
+
                     script {
                         sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
-                        sh "docker build -t /${image} ."
+                        sh "docker build -t ${image} ."
                         sh "docker push ${image}"
                         sh "docker logout"
                     }
@@ -39,7 +40,7 @@ pipeline{
 
         stage ("deploying to kubernetess"){
             steps{
-                sh 'kubectl apply -f Deployment.yaml' // we should fix the pull image issue
+                sh 'kubectl apply -f Deployment.yaml' // we should fix the pull image issue when we use the env.BUILD_NUMBER for the image tag
                 sh 'kubectl apply -f service.yaml'
             }
         }
