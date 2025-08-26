@@ -1,0 +1,23 @@
+---
+apiVersion: v1/apps
+kind: Deployment
+metadata:
+  name: end-of-lif-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: end-of-life-service
+  template:
+    metadata:
+      labels:
+        app: end-of-life-service
+    spec:
+      containers:
+        - name: end-of-life-service
+          image: youssefbouraoui/end-of-life-service
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8085
+      imagePullSecrets:
+        - name: regcred
