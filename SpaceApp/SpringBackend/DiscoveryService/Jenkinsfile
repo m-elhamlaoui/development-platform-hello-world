@@ -3,7 +3,7 @@ pipeline{
 
     when{
         anyOf{
-            changeset "SpaceApp/SpringBackend/EndOfLifeService/**"
+            changeset "SpaceApp/SpringBackend/DiscoveryService/**"
         }
     }
 
@@ -20,10 +20,10 @@ pipeline{
             }
         }
 
-        stage("building docker image and pushing to docker hub"){
+        stage("building docker image and pushing to dockerhub"){
             steps{
                 withCredentials([usernamePassword(credentialsId:'dockerHubCreds',usernameVariable:'DOCKERHUB_USER',passwordVariable:'DOCKERHUB_TOKEN')]){
-                    def image = "${DOCKERHUB_USER}/end-of-life-service:latest"
+                    def image = "${DOCKERHUB_USER}/discovery-service:latest"
                     sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
                     sh "docker build -t ${image} ."
                     sh "docker push ${image}"

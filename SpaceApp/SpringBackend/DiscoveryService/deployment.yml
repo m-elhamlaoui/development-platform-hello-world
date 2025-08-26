@@ -2,22 +2,22 @@
 apiVersion: v1/apps
 kind: Deployment
 metadata:
-  name: end-of-lif-service
+  name: discovery-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: end-of-life-service
+      app: discovery-service
   template:
     metadata:
       labels:
-        app: end-of-life-service
+        app: discovery-service
     spec:
       containers:
-        - name: end-of-life-service
-          image: youssefbouraoui1/end-of-life-service
+        - name: discovery-service
+          image: youssefbouraoui1/discovery-service:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8085
+            - containerPort: 8761
       imagePullSecrets:
         - name: regcred
