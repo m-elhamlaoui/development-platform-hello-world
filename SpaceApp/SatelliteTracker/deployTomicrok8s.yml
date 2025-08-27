@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: django-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: django-service
+  template:
+    metadata:
+      labels:
+        app: django-service
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: django-service
+          image: youssefbouraoui1/django-app:latest
+          ports:
+          - containerPort: 9003
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.default.svc.cluster.local:9092
+      imagePullSecrets:
+        - name: regcred

@@ -37,3 +37,4 @@ class TestingConsumingData {
         assertTrue(repo.findAll().size() > 0);
     }
 }
+
