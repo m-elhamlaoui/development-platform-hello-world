@@ -94,7 +94,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ Spring Boot app deployed successfully to MicroK8s!'
+            echo 'Spring Boot app deployed successfully to MicroK8s!'
         }
         failure {
             echo '❌ Deployment failed. Check Jenkins logs.'

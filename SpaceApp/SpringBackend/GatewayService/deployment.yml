@@ -1,0 +1,22 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels: gateway-service
+  template:
+    metadata:
+      labesl:
+        app: gateway-service
+    spec:
+      containers:
+        - name: gateway-service
+          image: youssefbouraoui1/gateway-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+      imagePullSecrets:
+        - name: regcred

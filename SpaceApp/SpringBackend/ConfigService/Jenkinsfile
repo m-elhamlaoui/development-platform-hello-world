@@ -1,0 +1,43 @@
+pipeline{
+    agent any
+
+    when {
+        anyOf{
+            changeset "SpaceApp/SpringBackend/ConfigService/**"
+        }
+    }
+
+    stages{
+        stage("building jar and testing"){
+            steps{
+                sh "mvn clean package"
+            }
+            post {
+                always {
+                    publishTestResults testResultsPattern: 'target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage("building docker image and pushing to repo"){
+            steps{
+                withCredentials([usernamePassword(credentialsId:'dockerHubCreds', usernameVariable: 'DOCKERHUB_USER',passwordVariable:'DOCKERHUB_TOKEN')]){
+                    def image = "${DOCKERHUB_USER}/config-service:latest"
+                    
+                    sh "echo \$DOCKERHUB_TOKEN | docker login -u \$DOCKERHUB_USER --password-stdin"
+                    sh "docker build -t ${image} ."
+                    sh "docker push ${image}"
+                    sh "docker logout"
+                    
+                }
+            }
+        }
+
+        stage("deploy to kubernetes"){
+            steps{
+                sh "kubectl apply -f deployment.yml"
+                sh "kubectl apply -f service.yml"
+            }
+        }
+    }
+}
