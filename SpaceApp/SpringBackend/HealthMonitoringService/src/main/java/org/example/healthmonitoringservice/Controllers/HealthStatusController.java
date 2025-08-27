@@ -17,19 +17,18 @@ public class HealthStatusController {
     private final HealthStatusRepository healthStatusRepository;
     private final HealthStatusService healthStatusService;
 
-    // Returns all records as a string for quick debug
+
     @GetMapping("/getHealthStatusForSatellites")
     public String health() {
         var all = healthStatusRepository.findAll();
-        System.out.println("📦 All Health Records:");
-        all.forEach(System.out::println); // print each document
-        return all.toString(); // fallback return
+        System.out.println("All Health Records:");
+        all.forEach(System.out::println);
+        return all.toString();
     }
 
-    // Returns the latest status for a given NORAD ID
     @GetMapping("/getLatestHealthStatus/{norad_id}")
     public ResponseEntity<HealthStatusDTO> getLatestStatus(@PathVariable("norad_id") Integer satelliteId) {
-        System.out.println("🔍 Fetching latest status for NORAD ID: " + satelliteId);
+        System.out.println("Fetching latest status for NORAD ID: " + satelliteId);
 
         HealthStatusDTO dto = healthStatusService.getLatestStatusForSatellite(satelliteId);
 
