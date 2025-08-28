@@ -1,3 +1,5 @@
 Terraform/terraform.tfvars
 Terraform/.terraform/
 Terraform/.terraform.lock.hcl
+.idea/
+.vscode/

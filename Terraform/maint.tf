@@ -68,4 +68,22 @@ resource "oci_core_subnet" "spaceAppSubnet1" {
   cidr_block          = "10.0.1.0/24"
 }
 
+data "oci_core_services" "all_services" {
+  filter {
+    name   = "name"
+    values = ["All .* Services In Oracle Services Network"]
+    regex  = true
+  }
+}
+
+resource "oci_core_service_gateway" "spaceAppNetworkServiceGateway" {
+  compartment_id = var.compartment_id
+  vcn_id = oci_core_vcn.spaceAppNewtork.id
+  display_name = "spaceAppNetworkServiceGateway"
+  
+  services {
+    service_id = data.oci_core_services.all_services.services[0].id
+  }
+}
+
 # we need nat gateway:ismail , internet gateway:ayman,service_gateway:youssef 
