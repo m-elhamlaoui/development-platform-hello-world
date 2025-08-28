@@ -16,6 +16,7 @@ resource "tls_private_key" "ssh_key1" {
   rsa_bits  = 2048
 }
 
+# to store the ssh keys generated above
 resource "local_file" "private_key" {
   filename = "c:/Users/Youssef/.ssh/ssh_key_projet_hamlaoui"
   content  = tls_private_key.ssh_key1.private_key_pem
