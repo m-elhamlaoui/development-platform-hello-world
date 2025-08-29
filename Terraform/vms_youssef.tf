@@ -35,7 +35,7 @@ resource "oci_core_instance" "contolePlane" {
   shape               = "VM.Standard.E4.Flex"
 
   shape_config {
-    ocpus         = 2
+    ocpus         = 3
     memory_in_gbs = 16
   }
 
