@@ -62,6 +62,63 @@ resource "oci_core_vcn" "spaceAppNewtork" {
   }
 }
 
+resource "oci_core_internet_gateway" "spaceAppInternetGateway" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id  # Use existing VCN
+  display_name   = "spaceAppInternetGateway"
+}
+
+resource "oci_core_route_table" "spaceAppPublicRouteTable" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id
+  display_name   = "spaceAppPublicRouteTable"
+  
+  route_rules {
+    destination       = "0.0.0.0/0"
+    network_entity_id = oci_core_internet_gateway.spaceAppInternetGateway.id  # Use Internet Gateway
+  }
+}
+
+resource "oci_core_subnet" "spaceAppPublicSubnet" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id
+  cidr_block     = "10.0.2.0/24"  # Different from existing 10.0.1.0/24
+  route_table_id = oci_core_route_table.spaceAppPublicRouteTable.id  # Use public routing
+  display_name   = "spaceAppPublicSubnet"
+}
+
+resource "oci_core_security_list" "spaceAppPublicSecurityList" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id
+  display_name   = "spaceAppPublicSecurityList"
+  
+  # Allow all outbound traffic
+  egress_security_rules {
+    destination = "0.0.0.0/0"
+    protocol    = "all"
+  }
+  
+  # Allow SSH inbound
+  ingress_security_rules {
+    protocol = "6"  # TCP
+    source   = "0.0.0.0/0"
+    tcp_options {
+      min = 22
+      max = 22
+    }
+  }
+  
+  # Allow HTTP inbound
+  ingress_security_rules {
+    protocol = "6"  # TCP
+    source   = "0.0.0.0/0"
+    tcp_options {
+      min = 80
+      max = 80
+    }
+  }
+}
+
 resource "oci_core_subnet" "spaceAppSubnet1" {
   compartment_id = var.compartment_id
   vcn_id = oci_core_vcn.spaceAppNewtork.id
