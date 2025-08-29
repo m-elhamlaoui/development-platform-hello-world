@@ -1,0 +1,43 @@
+---
+- name: installing kubeadm
+  hosts: all
+  become: yes
+  tasks:
+    - name: update packages
+      apt:
+        update_cache: yes
+    - name: install dependencies
+      apt:
+        name: ['apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common']
+        state: present
+        update_cache: yes
+    - name: Download the public signing key for the Kubernetes package repositories.
+      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    
+    - name: Add the appropriate Kubernetes apt repository
+      shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
+      args:
+        creates: /etc/apt/sources.list.d/kubernetes.list
+    
+    - name: Update package cache after adding Kubernetes repo
+      apt:
+        update_cache: yes
+
+    - name: Installing kubeadm
+      apt:
+        name: 
+          - kubeadm=1.34.0-00
+          - kubelet=1.34.0-00
+          - kubectl=1.34.0-00
+        state: present
+
+    - name: Hold kubeadm, kubelet, and kubectl to prevent automatic upgrades
+      shell: apt-mark hold kubelet kubeadm kubectl
+
+    - name: Enabling kubelet service
+      shell: systemctl enable --now kubelet
+
+
+    
