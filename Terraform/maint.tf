@@ -66,6 +66,7 @@ resource "oci_core_subnet" "spaceAppSubnet1" {
   compartment_id = var.compartment_id
   vcn_id = oci_core_vcn.spaceAppNewtork.id
   cidr_block          = "10.0.1.0/24"
+  route_table_id = oci_core_route_table.spaceAppPrivateRouteTable.id
 }
 
 data "oci_core_services" "all_services" {
@@ -87,3 +88,21 @@ resource "oci_core_service_gateway" "spaceAppNetworkServiceGateway" {
 }
 
 # we need nat gateway:ismail , internet gateway:ayman,service_gateway:youssef 
+
+# NAT Gateway
+resource "oci_core_nat_gateway" "spaceAppNatGateway" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id
+  display_name   = "spaceAppNatGateway"
+}
+
+resource "oci_core_route_table" "spaceAppPrivateRouteTable" {
+  compartment_id = var.compartment_id
+  vcn_id         = oci_core_vcn.spaceAppNewtork.id
+  display_name   = "spaceAppPrivateRouteTable"
+
+  route_rules {
+    destination       = "0.0.0.0/0"
+    network_entity_id = oci_core_nat_gateway.spaceAppNatGateway.id
+  }
+}
