@@ -1,0 +1,8 @@
+- name: Install Git on all hosts
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Git
+      dnf:
+        name: git
+        state: present
