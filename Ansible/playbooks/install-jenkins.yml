@@ -1,0 +1,129 @@
+---
+- name: Install Jenkins on control plane
+  hosts: jenkins_host
+  become: yes
+  vars:
+    jenkins_port: 8080
+    jenkins_user: jenkins
+    jenkins_home: /var/lib/jenkins
+  
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - curl
+        - wget
+        - gnupg2
+        - software-properties-common
+        - apt-transport-https
+        - ca-certificates
+
+    - name: Install Java 17 (OpenJDK)
+      apt:
+        name: openjdk-17-jdk
+        state: present
+
+    - name: Add Jenkins GPG key
+      apt_key:
+        url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+        state: present
+
+    - name: Add Jenkins repository
+      apt_repository:
+        repo: "deb https://pkg.jenkins.io/debian-stable binary/"
+        state: present
+        filename: jenkins
+
+    - name: Update apt cache after adding Jenkins repo
+      apt:
+        update_cache: yes
+
+    - name: Install Jenkins
+      apt:
+        name: jenkins
+        state: present
+
+    - name: Create Jenkins user with proper shell
+      user:
+        name: "{{ jenkins_user }}"
+        shell: /bin/bash
+        home: "{{ jenkins_home }}"
+        system: yes
+
+    - name: Set proper ownership for Jenkins home directory
+      file:
+        path: "{{ jenkins_home }}"
+        owner: "{{ jenkins_user }}"
+        group: "{{ jenkins_user }}"
+        recurse: yes
+        state: directory
+
+    - name: Configure Jenkins to run on custom port (optional)
+      lineinfile:
+        path: /etc/default/jenkins
+        regexp: '^HTTP_PORT='
+        line: "HTTP_PORT={{ jenkins_port }}"
+        backup: yes
+      when: jenkins_port != 8080
+
+    - name: Start and enable Jenkins service
+      systemd:
+        name: jenkins
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for Jenkins to start up
+      wait_for:
+        port: "{{ jenkins_port }}"
+        host: "{{ ansible_host }}"
+        delay: 30
+        timeout: 300
+
+    - name: Check if Jenkins is running
+      uri:
+        url: "http://{{ ansible_host }}:{{ jenkins_port }}"
+        method: GET
+        status_code: 200,403
+      register: jenkins_status
+      retries: 5
+      delay: 10
+
+    - name: Get Jenkins initial admin password
+      slurp:
+        src: "{{ jenkins_home }}/secrets/initialAdminPassword"
+      register: jenkins_initial_password
+      when: jenkins_status.status == 403
+
+    - name: Display Jenkins initial admin password
+      debug:
+        msg: |
+          Jenkins is now running on {{ ansible_host }}:{{ jenkins_port }}
+          Initial admin password: {{ jenkins_initial_password.content | b64decode }}
+          Please save this password to complete Jenkins setup via web interface.
+      when: jenkins_initial_password is defined
+
+    - name: Open firewall for Jenkins (if ufw is installed)
+      ufw:
+        rule: allow
+        port: "{{ jenkins_port }}"
+        proto: tcp
+      ignore_errors: yes
+
+    - name: Display Jenkins access information
+      debug:
+        msg: |
+          Jenkins installation completed successfully on CONTROL PLANE!
+          Access Jenkins at: http://{{ ansible_host }}:{{ jenkins_port }}
+          {% if jenkins_initial_password is defined %}
+          Use the initial admin password displayed above for first-time setup.
+          {% endif %}
+          
+          This Jenkins instance will serve as the CI/CD hub for your Kubernetes cluster.
