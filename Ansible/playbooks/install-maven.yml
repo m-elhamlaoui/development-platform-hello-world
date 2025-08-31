@@ -1,0 +1,10 @@
+---
+name: install Maven
+hosts: controlPlane
+become: yes
+tasks:
+  - name: install maven
+    apt:
+      name: maven
+      update_cache: yes
+      state: present
