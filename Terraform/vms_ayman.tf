@@ -18,12 +18,12 @@ resource "tls_private_key" "ssh_key1" {
 
 
 resource "local_file" "private_key" {
-  filename = "c:/Users/J.P.M/.ssh/ssh_key_projet_hamlaoui"  
+  filename = "ssh_key_projet_hamlaoui_ayman"
   content  = tls_private_key.ssh_key1.private_key_pem
 }
 
 resource "local_file" "public_key" {
-  filename = "c:/Users/J.P.M/.ssh/ssh_key_projet_hamlaoui"  
+  filename = "ssh_key_projet_hamlaoui_ayman"
   content  = tls_private_key.ssh_key1.public_key_openssh
 }
 
@@ -67,7 +67,7 @@ resource "oci_core_instance" "aymanVM2" {
   }
 
   create_vnic_details {
-    subnet_id                 = oci_core_subnet.spaceAppPublicSubnet.id  # PUBLIC subnet
+    subnet_id                 = oci_core_subnet.spaceAppPublicSubnet.id
     assign_public_ip          = true
     assign_private_dns_record = true
   }

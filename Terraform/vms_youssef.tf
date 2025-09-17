@@ -16,19 +16,17 @@ resource "tls_private_key" "ssh_key1" {
   rsa_bits  = 2048
 }
 
-# to store the ssh keys generated above
 resource "local_file" "private_key" {
-  filename = "c:/Users/Youssef/.ssh/ssh_key_projet_hamlaoui"
+  filename = "ssh_key_projet_hamlaoui_youssef"
   content  = tls_private_key.ssh_key1.private_key_pem
 }
 
 resource "local_file" "public_key" {
-  filename = "c:/Users/Youssef/.ssh/ssh_key_projet_hamlaoui.pub"
+  filename = "ssh_key_projet_hamlaoui_youssef.pub"
   content  = tls_private_key.ssh_key1.public_key_openssh
 }
 
-# control plane of kubernetes and it wil have also jenkins
-resource "oci_core_instance" "contolePlane" {
+resource "oci_core_instance" "conrtolPlane" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   compartment_id      = var.compartment_id
   display_name        = "controlePlane"
@@ -40,7 +38,7 @@ resource "oci_core_instance" "contolePlane" {
   }
 
   create_vnic_details {
-    subnet_id                 = oci_core_subnet.spaceAppSubnet1.id
+    subnet_id                 = oci_core_subnet.spaceAppPublicSubnet.id
     assign_public_ip          = true
     assign_private_dns_record = true
   }
@@ -67,7 +65,7 @@ resource "oci_core_instance" "machine2" {
   }
 
   create_vnic_details {
-    subnet_id = oci_core_subnet.spaceAppSubnet1.id
+    subnet_id = oci_core_subnet.spaceAppPublicSubnet.id
     assign_public_ip = true
     assign_private_dns_record = true
   }

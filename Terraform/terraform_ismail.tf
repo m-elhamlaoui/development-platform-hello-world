@@ -17,12 +17,12 @@ resource "tls_private_key" "ssh_key1" {
 }
 
 resource "local_file" "private_key" {
-  filename = "/home/ismailahakay/.ssh/ssh_key_hamlaoui"
+  filename = "ssh_key_hamlaoui_ismail"
   content  = tls_private_key.ssh_key1.private_key_pem
 }
 
 resource "local_file" "public_key" {
-  filename = "/home/ismailahakay/.ssh/ssh_key_hamlaoui.pub"
+  filename = "ssh_key_hamlaoui_ismail.pub"
   content  = tls_private_key.ssh_key1.public_key_openssh
 }
 
@@ -38,7 +38,7 @@ resource "oci_core_instance" "ismailVM1" {
   }
 
   create_vnic_details {
-    subnet_id                 = oci_core_subnet.spaceAppSubnet1.id
+    subnet_id                 = oci_core_subnet.spaceAppPublicSubnet.id
     assign_public_ip          = true
     assign_private_dns_record = true
   }
@@ -65,7 +65,7 @@ resource "oci_core_instance" "ismailVM2" {
   }
 
   create_vnic_details {
-    subnet_id                 = oci_core_subnet.spaceAppSubnet1.id
+    subnet_id                 = oci_core_subnet.spaceAppPublicSubnet.id
     assign_public_ip          = true
     assign_private_dns_record = true
   }
