@@ -96,7 +96,8 @@ resource "oci_core_route_table" "spaceAppPrivateRouteTable" {
   }
 
   route_rules {
-    destination       = data.oci_core_services.all_services.services[0].cidr_block
+    destination      = "all-cdg-services-in-oracle-services-network"
+    destination_type = "SERVICE_CIDR_BLOCK"
     network_entity_id = oci_core_service_gateway.spaceAppNetworkServiceGateway.id
   }
 }
@@ -180,6 +181,10 @@ resource "oci_core_security_list" "spaceAppPrivateSecurityList" {
 }
 
 
+data "oci_identity_availability_domains" "ads" {
+  compartment_id = var.tenancy_ocid
+}
+
 
 data "oci_core_services" "all_services" {
   filter {
@@ -199,3 +204,11 @@ resource "oci_core_service_gateway" "spaceAppNetworkServiceGateway" {
   }
 }
 
+data "oci_core_images" "ubuntu_images" {
+  compartment_id           = var.compartment_id
+  operating_system         = "Canonical Ubuntu"
+  operating_system_version = "22.04"
+  shape                    = "VM.Standard.E4.Flex"
+  sort_by                  = "TIMECREATED"
+  sort_order               = "DESC"
+}

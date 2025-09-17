@@ -1,6 +1,6 @@
 ---
 - name: Install Jenkins on control plane
-  hosts: jenkins_host
+  hosts: control_plane
   become: yes
   vars:
     jenkins_port: 8080
