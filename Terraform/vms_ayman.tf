@@ -9,7 +9,7 @@ resource "local_file" "private_key_ayman" {
 }
 
 resource "local_file" "public_key_ayman" {
-  filename = "ssh_key_projet_hamlaoui_ayman"
+  filename = "ssh_key_projet_hamlaoui_ayman.pub"
   content  = tls_private_key.ssh_key_ayman.public_key_openssh
 }
 

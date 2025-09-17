@@ -1,6 +1,6 @@
 ---
 name: install Maven
-hosts: controlPlane
+hosts: control_plane
 become: yes
 tasks:
   - name: install maven
