@@ -1,43 +1,65 @@
 ---
-- name: installing kubeadm
+- name: Install Kubernetes tools (kubeadm, kubelet, kubectl)
   hosts: all
   become: yes
   tasks:
-    - name: update packages
-      apt:
-        update_cache: yes
-    - name: install dependencies
-      apt:
-        name: ['apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common']
-        state: present
-        update_cache: yes
-    - name: Download the public signing key for the Kubernetes package repositories.
-      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-      args:
-        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-    
-    - name: Add the appropriate Kubernetes apt repository
-      shell: echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list
-      args:
-        creates: /etc/apt/sources.list.d/kubernetes.list
-    
-    - name: Update package cache after adding Kubernetes repo
+
+    - name: Update apt package cache
       apt:
         update_cache: yes
 
-    - name: Installing kubeadm
+    - name: Install dependencies
       apt:
-        name: 
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+        state: present
+        update_cache: yes
+
+    - name: Ensure /etc/apt/keyrings exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download the Kubernetes GPG key
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+        mode: '0644'
+      # Only download if not exists
+      force: no
+
+    - name: Add Kubernetes apt repository
+      copy:
+        dest: /etc/apt/sources.list.d/kubernetes.list
+        content: "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /"
+      # Only create if not exists
+      force: no
+
+    - name: Update apt package cache after adding Kubernetes repo
+      apt:
+        update_cache: yes
+
+    - name: Install kubeadm, kubelet, kubectl
+      apt:
+        name:
           - kubeadm=1.34.0-00
           - kubelet=1.34.0-00
           - kubectl=1.34.0-00
         state: present
+        allow_downgrade: yes
 
     - name: Hold kubeadm, kubelet, and kubectl to prevent automatic upgrades
-      shell: apt-mark hold kubelet kubeadm kubectl
+      command: apt-mark hold kubelet kubeadm kubectl
+      args:
+        warn: false
 
-    - name: Enabling kubelet service
-      shell: systemctl enable --now kubelet
-
-
-    
+    - name: Enable and start kubelet service
+      systemd:
+        name: kubelet
+        enabled: yes
+        state: started
