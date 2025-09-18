@@ -1,10 +1,10 @@
 ---
-name: install Maven
-hosts: control_plane
-become: yes
-tasks:
-  - name: install maven
-    apt:
-      name: maven
-      update_cache: yes
-      state: present
+- name: install maven
+  hosts: control_plane
+  become: yes
+  tasks:
+    - name: install maven
+      apt:
+        name: maven
+        update_cache: yes
+        state: present
