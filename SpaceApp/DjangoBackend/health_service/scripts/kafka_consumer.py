@@ -1,1 +1,0 @@
-print('Kafka consumer placeholder')
