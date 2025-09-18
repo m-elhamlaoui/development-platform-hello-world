@@ -3,6 +3,7 @@
   become: yes
   tasks:
     - name: Install Git
-      dnf:
+      apt:
         name: git
         state: present
+        update_cache: yes
