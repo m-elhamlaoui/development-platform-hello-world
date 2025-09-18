@@ -1,5 +1,5 @@
 - name: Install Git on all hosts
-  hosts: all
+  hosts: control_plane
   become: yes
   tasks:
     - name: Install Git
