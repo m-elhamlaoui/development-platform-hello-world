@@ -36,7 +36,7 @@ resource "oci_core_instance" "aymanVM1" {
   }
 
   metadata = {
-    ssh_authorized_keys = tls_private_key.ssh_key1.public_key_openssh
+    ssh_authorized_keys = tls_private_key.ssh_key_ayman.public_key_openssh
   }
 }
 
@@ -64,6 +64,6 @@ resource "oci_core_instance" "aymanVM2" {
   }
 
   metadata = {
-    ssh_authorized_keys = tls_private_key.ssh_key1.public_key_openssh
+    ssh_authorized_keys = tls_private_key.ssh_key_ayman.public_key_openssh
   }
 }

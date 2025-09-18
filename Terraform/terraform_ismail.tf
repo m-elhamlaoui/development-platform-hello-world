@@ -36,7 +36,7 @@ resource "oci_core_instance" "ismailVM1" {
   }
 
   metadata = {
-    ssh_authorized_keys = tls_private_key.ssh_key1.public_key_openssh
+    ssh_authorized_keys = tls_private_key.ssh_key_ismail.public_key_openssh
   }
 }
 
@@ -63,6 +63,6 @@ resource "oci_core_instance" "ismailVM2" {
   }
 
   metadata = {
-    ssh_authorized_keys = tls_private_key.ssh_key1.public_key_openssh
+    ssh_authorized_keys = tls_private_key.ssh_key_ismail.public_key_openssh
   }
 }
